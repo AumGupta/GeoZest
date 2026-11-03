@@ -1,0 +1,26 @@
+{
+  "name": "geozest",
+  "version": "1.0.0",
+  "description": "A minimal, map-first geography quiz on a 3D globe.",
+  "private": true,
+  "license": "GPL-3.0-only",
+  "author": "Om Gupta (https://github.com/AumGupta)",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/AumGupta/GeoZest.git"
+  },
+  "scripts": {
+    "start": "npx --yes serve .",
+    "build:data": "node scripts/build-data.js"
+  },
+  "devDependencies": {
+    "countries-and-timezones": "^3.7.2",
+    "country-json": "^2.3.0",
+    "egm96-universal": "^1.1.1",
+    "svg-country-flags": "^1.2.10",
+    "svgo": "^3.3.2",
+    "world-atlas": "^2.0.2",
+    "world-cities-json": "^1.0.1",
+    "world-countries": "^5.1.0"
+  }
+}

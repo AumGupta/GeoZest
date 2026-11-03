@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>GeoZest: Geography Quiz on a 3D Globe</title>
+    <meta
+      name="description"
+      content="A free geography quiz on a 3D globe. Learn where every country is, its flag, capital, languages and currency, and hear how each name is said."
+    />
+    <link rel="canonical" href="https://aumgupta.github.io/GeoZest/" />
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="GeoZest: Geography Quiz on a 3D Globe" />
+    <meta
+      property="og:description"
+      content="A free geography quiz on a 3D globe. Learn where every country is, its flag, capital, languages and currency, and hear how each name is said."
+    />
+    <meta property="og:url" content="https://aumgupta.github.io/GeoZest/" />
+    <meta property="og:image" content="https://aumgupta.github.io/GeoZest/docs/assets/screenshots/1.png" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)" />
+    <link rel="icon" href="favicon.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="icons/apple-touch-icon.png" />
+    <link rel="manifest" href="manifest.webmanifest" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="GeoZest" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <link rel="stylesheet" href="css/style.css" />
+  </head>
+  <body>
+    <div id="map" aria-label="World map" role="img"><canvas id="cv"></canvas></div>
+    <div class="tip" id="tip"></div>
+    <div class="brand">
+      <svg class="logo" viewBox="0 0 100 100" aria-hidden="true">
+        <circle cx="50" cy="50" r="50" />
+        <path d="M71.16 13.36 59.25 55.33 28.84 86.64 40.75 44.67Z" /></svg
+      >Geo<span class="sub">Zest</span>
+    </div>
+
+    <div class="ctrl" id="ctrl">
+      <button class="me" id="btnMe" aria-label="Progress and settings">
+        <span class="ring" id="meRing"></span><b id="meLvl">1</b>
+      </button>
+      <div class="stack">
+        <button class="proj-btn" id="btnProj" aria-label="Switch projection">EE</button>
+        <button id="btnSound" aria-label="Sound"></button>
+        <button id="btnLoc" aria-label="Recenter">
+          <svg class="i" viewBox="0 0 24 24">
+            <path d="M12 2v3M12 19v3M2 12h3M19 12h3" />
+            <circle cx="12" cy="12" r="6" />
+            <circle cx="12" cy="12" r="1.6" fill="currentColor" />
+          </svg>
+        </button>
+        <button id="btnNight" aria-label="Night mode"></button>
+      </div>
+      <div class="stack dk-only">
+        <button id="zIn" aria-label="Zoom in">
+          <svg class="i" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" /></svg>
+        </button>
+        <button id="zOut" aria-label="Zoom out">
+          <svg class="i" viewBox="0 0 24 24"><path d="M5 12h14" /></svg>
+        </button>
+      </div>
+    </div>
+
+    <button class="fab" id="btnSearch" aria-label="Search">
+      <svg class="i" viewBox="0 0 24 24">
+        <circle cx="11" cy="11" r="7" />
+        <path d="m20 20-4-4" />
+      </svg>
+    </button>
+    <button class="play" id="btnPlay">
+      <svg class="i" viewBox="0 0 24 24" style="width: 16px; height: 16px">
+        <path d="M7 4.5v15l12-7.5z" fill="currentColor" stroke="none" /></svg
+      >Play<span class="dot2" id="dailyDot" hidden></span>
+    </button>
+
+    <div class="sheet" id="sheet" hidden>
+      <div class="sheet-head" id="sheetHead">
+        <div class="grab"></div>
+        <div id="sheetTop"></div>
+      </div>
+      <div class="sheet-body" id="sheetBody"></div>
+      <div class="sheet-foot" id="sheetFoot" hidden></div>
+    </div>
+    <div id="quizLayer"></div>
+    <button class="geo-legend" id="geoLegend" hidden aria-pressed="true" aria-label="Geoid height colours">
+      <b><span class="sw" aria-hidden="true"></span>Geoid height (EGM96)</b><span class="mono">&minus;100 m</span><i></i
+      ><span class="mono">+80 m</span>
+    </button>
+    <div class="scalebar" id="scale" aria-hidden="true">
+      <div class="sb-l"><span>0</span><span id="sbMid"></span><span id="sbEnd"></span></div>
+      <div class="sb-bar"><i></i><i></i></div>
+    </div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.9.0/d3.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/topojson-client@3.1.0/dist/topojson-client.min.js"></script>
+    <script src="data/geo.js"></script>
+    <script src="js/core.js"></script>
+    <script src="js/map.js"></script>
+    <script src="js/globe.js"></script>
+    <script src="js/ui.js"></script>
+    <script src="js/quiz.js"></script>
+    <script src="js/main.js"></script>
+    <script src="js/pwa.js"></script>
+  </body>
+</html>
