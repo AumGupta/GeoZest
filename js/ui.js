@@ -540,7 +540,51 @@ function detailRows(c) {
     <div class="kv"><span class="k">Mastered</span><span class="v mono">${countryScore(id)} / ${SKILLS.length}</span></div>
   </div>`;
 }
+const PENG = [
+  "Hi, I'm an emperor penguin. Welcome to Antarctica! Tap me for more.",
+  "Looking for polar bears? Wrong end of the planet. They live in the Arctic, up north.",
+  "Nobody owns this place. Twelve countries signed the Antarctic Treaty in 1959, and 54 are part of it today.",
+  "About 70% of the world's fresh water is frozen right under my feet.",
+  "The ice here is about 1.9 km thick on average.",
+  "Coldest temperature ever measured: −89.2 °C, at Vostok Station in July 1983. Brr.",
+  "Nobody lives here for good. About 5,000 people work at research stations in summer, and around 1,000 stay for winter.",
+  "We emperors raise our chicks in the middle of the Antarctic winter. The dads keep the egg warm on their feet.",
+  "Highest point: Vinson Massif, 4,892 m. I prefer swimming.",
+];
+const PENGSVG = `<svg class="pg" viewBox="0 0 64 80" aria-hidden="true"><path d="M11 46 Q3 60 12 68" stroke="#1f1f23" stroke-width="6" fill="none" stroke-linecap="round"/><path d="M53 46 Q61 60 52 68" stroke="#1f1f23" stroke-width="6" fill="none" stroke-linecap="round"/><ellipse cx="32" cy="48" rx="21" ry="29" fill="#1f1f23"/><ellipse cx="32" cy="54" rx="14" ry="21" fill="#fff"/><circle cx="32" cy="22" r="14" fill="#1f1f23"/><ellipse cx="21.5" cy="31" rx="4.5" ry="6.5" fill="#F9C74F"/><ellipse cx="42.5" cy="31" rx="4.5" ry="6.5" fill="#F9C74F"/><circle cx="26.5" cy="20" r="2.4" fill="#fff"/><circle cx="37.5" cy="20" r="2.4" fill="#fff"/><circle cx="27" cy="20.5" r="1.2" fill="#000"/><circle cx="38" cy="20.5" r="1.2" fill="#000"/><path d="M29 25.5 L35 25.5 L32 31 Z" fill="#FD971F"/><ellipse cx="24" cy="77" rx="6" ry="2.6" fill="#FD971F"/><ellipse cx="40" cy="77" rx="6" ry="2.6" fill="#FD971F"/></svg>`;
+function openAntarctica() {
+  deselect();
+  selected = "ATA";
+  M.cls("ATA", "sel");
+  M.setPins([]);
+  const top = `<div class="row-x"><span class="cap">Continent, no countries</span><button class="x" data-close aria-label="Close">${I.x}</button></div>`;
+  const body = `<div data-peek-end><div class="info"><div class="info-h"><div class="nmw"><div class="nm">Antarctica</div><div class="capn">No capital, no permanent residents</div></div></div>
+      <div class="facts"><div><div class="k">Area</div><div class="v mono">14.2 m km²</div></div><div><div class="k">Residents</div><div class="v mono">0</div></div>
+      <div><div class="k">Coldest</div><div class="v mono">−89.2 °C</div></div><div><div class="k">Highest</div><div class="v mono">4,892 m</div></div></div></div>
+    <div class="gap"></div><button class="peng" id="peng" aria-label="Talk to the penguin"><span class="pgw">${PENGSVG}</span><span class="bub" id="bub" aria-live="polite">${PENG[0]}</span></button></div>
+    <div class="gap"></div><div class="rows">
+    <div class="kv"><span class="k">Governed by</span><span class="v">The Antarctic Treaty, signed by 12 countries in 1959. 54 countries are party to it today.</span></div>
+    <div class="kv"><span class="k">Ice</span><span class="v">About 1.9 km thick on average, holding around 70% of the world's fresh water</span></div>
+    <div class="kv"><span class="k">Highest</span><span class="v">Vinson Massif, 4,892 m</span></div>
+    <div class="kv"><span class="k">Coldest</span><span class="v">−89.2 °C at Vostok Station, 21 July 1983</span></div>
+    <div class="kv"><span class="k">People</span><span class="v">About 5,000 at research stations in summer, around 1,000 in winter</span></div></div>`;
+  sheetOpen("country", top, body, { snap: "peek", onClose: deselect });
+  let n = 0;
+  $("#peng").onclick = () => {
+    n = (n + 1) % PENG.length;
+    $("#bub").textContent = PENG[n];
+    SND.play("tap");
+    const g = $("#peng .pg");
+    g.classList.remove("hop");
+    void g.getBBox();
+    g.classList.add("hop");
+  };
+}
 function openCountry(id) {
+  if (id === "ATA") {
+    openAntarctica();
+    return;
+  }
   const c = C.get(id);
   if (!c) return;
   const nb = c.b.map((x) => C.get(x)).filter(Boolean);
@@ -626,26 +670,70 @@ function renderResults(term) {
   };
 }
 
+const ART = {
+  locate: ["◎", "⌖", "●", "◉", "⌖"],
+  identify: ["?", "?", "¿", "?"],
+  capitals: ["★", "✦", "☆", "★"],
+  languages: ["अ", "あ", "ع", "Ж", "Ω", "ก", "한", "ß", "ñ", "ψ"],
+  currencies: ["$", "€", "£", "¥", "₹", "₩", "₽", "₺", "฿", "₦", "₫", "₴"],
+  neighbours: ["⬡", "⬢", "⬡"],
+  daily: ["1", "7", "12", "24", "31", "3", "19"],
+};
+function cardArt(k) {
+  const rng = rngFrom(hash("art" + k));
+  const pool = k === "mixed" ? Object.values(ART).flat() : ART[k];
+  let out = "";
+  for (let i = 0; i < 12; i++) {
+    const x = (18 + rng() * 92).toFixed(1),
+      y = (18 + rng() * 92).toFixed(1),
+      r = ((rng() - 0.5) * 50).toFixed(0),
+      col = `var(--p${i % 6})`,
+      sz = (11 + rng() * 13).toFixed(0);
+    if (k === "flags") {
+      const w = +sz * 1.3,
+        h = +sz * 0.85;
+      out += `<g transform="translate(${x} ${y}) rotate(${r})"><rect x="${-w / 2}" y="${-h / 2}" width="${w}" height="${h / 3}" fill="var(--p${i % 6})"/><rect x="${-w / 2}" y="${-h / 6}" width="${w}" height="${h / 3}" fill="var(--p${(i + 2) % 6})"/><rect x="${-w / 2}" y="${h / 6}" width="${w}" height="${h / 3}" fill="var(--p${(i + 4) % 6})"/></g>`;
+    } else
+      out += `<text x="${x}" y="${y}" font-size="${sz}" transform="rotate(${r} ${x} ${y})" text-anchor="middle" dominant-baseline="central" style="fill:${col}" font-weight="700">${pick(pool, rng)}</text>`;
+  }
+  return `<svg class="art" viewBox="0 0 100 100" preserveAspectRatio="xMidYMid slice" aria-hidden="true">${out}</svg>`;
+}
+let playMoved = false;
 function openPlay() {
+  if (SH.kind !== "play") playMoved = false;
   const st = S.settings;
   const dd = S.daily[todayKey()];
   const keep = SH.kind === "play" ? SH.body.scrollTop : 0;
+  const sel = st.region === "World" ? [] : st.region.split(",");
   const top = `<div class="row-x"><h2 class="title">Play</h2><button class="x" data-close aria-label="Close">${I.x}</button></div>`;
-  const body = `<div class="scroller">${["World", ...REGIONS].map((r) => `<button class="pill" data-r="${r}" aria-pressed="${r === st.region}">${r}</button>`).join("")}</div>
-    <div style="display:flex;gap:6px;margin-top:8px;align-items:center">${[10, 20, 30].map((n) => `<button class="pill mono" data-l="${n}" aria-pressed="${n === st.len}">${n}</button>`).join("")}
-      <button class="pill" data-t aria-pressed="${st.timer}" style="margin-left:auto">${I.timer}Timer</button></div>
+  const card = (k, t, right, attrs = "", cls = "") =>
+    `<button class="mcard${cls}" ${attrs}>${cardArt(k)}<span class="mc-i">${I[k]}</span><span class="mc-t">${t}</span><span class="mc-p">${right}</span></button>`;
+  const body = `<div class="popts">
+      <span class="plabel">Region</span><div class="prow wrap" role="group" aria-label="Region">${["World", ...REGIONS].map((r) => `<button class="pill" data-r="${r}" aria-pressed="${r === "World" ? !sel.length : sel.includes(r)}">${r}</button>`).join("")}</div>
+      <span class="plabel">Questions</span><div class="prow" role="group" aria-label="Number of questions">${[10, 20, 30].map((n) => `<button class="pill mono" data-l="${n}" aria-pressed="${n === st.len}" aria-label="${n} questions">${n}</button>`).join("")}
+      <button class="pill" data-t aria-pressed="${st.timer}" aria-label="Timer ${st.timer ? "on" : "off"}" style="margin-left:auto">${st.timer ? I.timer : I.timerOff}Timer</button></div>
+    </div>
     <div class="gap"></div>
-    <ul class="list">
-      <li><button class="li" data-daily ${dd ? "disabled" : ""}><span class="ic">${I.daily}</span><span class="n">Daily</span><span class="r">${dd ? `${dd.c}/${dd.t}` : `<span class="ydot"></span>`}</span></button></li>
+    <div class="mgrid">
+      ${card("daily", "Daily", dd ? `${dd.c}/${dd.t}` : `<span class="newb">New</span>`, `data-daily ${dd ? "disabled" : ""}`, dd ? "" : " dnew")}
       ${Object.keys(MODES)
         .map((k) => {
           const m = mastery(k, st.region);
           const p = m.t ? Math.round((m.n / m.t) * 100) : 0;
-          return `<li><button class="li" data-m="${k}"><span class="ic">${I[k]}</span><span class="n">${MODES[k].t}</span><span class="r">${p}%</span></button></li>`;
+          return card(k, MODES[k].t, p + "%", `data-m="${k}"`);
         })
         .join("")}
-    </ul>`;
-  sheetOpen("play", top, body, { snap: "full" });
+    </div>`;
+  sheetOpen("play", top, body, {
+    snap: "full",
+    onClose: () =>
+      setTimeout(() => {
+        if (playMoved && !Q && !SH.kind) {
+          playMoved = false;
+          M.toRegion(S.settings.region, 700);
+        }
+      }, 40),
+  });
   SH.body.scrollTop = keep;
   SH.body.onclick = (e) => {
     const r = e.target.closest("[data-r]"),
@@ -654,7 +742,17 @@ function openPlay() {
       m = e.target.closest("[data-m]"),
       d = e.target.closest("[data-daily]");
     if (r) {
-      st.region = r.dataset.r;
+      const v = r.dataset.r;
+      if (v === "World") st.region = "World";
+      else {
+        const s2 = new Set(sel);
+        s2.has(v) ? s2.delete(v) : s2.add(v);
+        st.region =
+          !s2.size || s2.size === REGIONS.length
+            ? "World"
+            : REGIONS.filter((x) => s2.has(x)).join(",");
+      }
+      playMoved = true;
       save();
       openPlay();
       M.toRegion(st.region);

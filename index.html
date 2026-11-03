@@ -32,11 +32,19 @@
   <body>
     <div id="map" aria-label="World map" role="img"><canvas id="cv"></canvas></div>
     <div class="tip" id="tip"></div>
-    <div class="brand">
-      <svg class="logo" viewBox="0 0 100 100" aria-hidden="true">
-        <circle cx="50" cy="50" r="50" />
-        <path d="M71.16 13.36 59.25 55.33 28.84 86.64 40.75 44.67Z" /></svg
-      >Geo<span class="sub">Zest</span>
+    <div class="tl">
+      <div class="brand">
+        <svg class="logo" viewBox="0 0 100 100" aria-hidden="true">
+          <circle cx="50" cy="50" r="50" />
+          <path d="M71.16 13.36 59.25 55.33 28.84 86.64 40.75 44.67Z" /></svg
+        >Geo<span class="sub">Zest</span>
+      </div>
+      <button class="fab" id="btnSearch" aria-label="Search">
+        <svg class="i" viewBox="0 0 24 24">
+          <circle cx="11" cy="11" r="7" />
+          <path d="m20 20-4-4" />
+        </svg>
+      </button>
     </div>
 
     <div class="ctrl" id="ctrl">
@@ -65,16 +73,11 @@
       </div>
       <button class="geo-legend" id="geoLegend" hidden aria-pressed="true" aria-label="Geoid height colours">
         <b><span class="sw" aria-hidden="true"></span><span class="lt">Geoid height (EGM96)</span></b
-        ><span class="mono lo">&minus;100 m</span><i></i><span class="mono hi">+80 m</span>
+        ><span class="ab" aria-hidden="true">Geoid<br />height</span><span class="mono lo">&minus;100 m</span><i></i
+        ><span class="mono hi">+80 m</span>
       </button>
     </div>
 
-    <button class="fab" id="btnSearch" aria-label="Search">
-      <svg class="i" viewBox="0 0 24 24">
-        <circle cx="11" cy="11" r="7" />
-        <path d="m20 20-4-4" />
-      </svg>
-    </button>
     <button class="play" id="btnPlay">
       <svg class="i" viewBox="0 0 24 24" style="width: 16px; height: 16px">
         <path d="M7 4.5v15l12-7.5z" fill="currentColor" stroke="none" /></svg

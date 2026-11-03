@@ -1,6 +1,6 @@
 <div align="center">
 
-# **Geo**Zest
+# GeoZest
 
 [![Play now](https://img.shields.io/badge/Play-now-000000?logo=googlechrome&logoColor=white)](https://aumgupta.github.io/GeoZest/)
 [![Sponsor](https://img.shields.io/badge/Sponsor-%E2%9D%A4-ea4aaa?logo=githubsponsors&logoColor=white)](https://github.com/sponsors/AumGupta)
@@ -24,7 +24,7 @@ GeoZest is a minimal, map-first geography quiz game. Explore every country on a 
 - Four map views: Globe, Geoid (EGM96 heights), Equal Earth and Mercator, with smooth morphs between them.
 - Country cards with population, area, languages, currency, borders and a fun fact.
 - Native pronunciations of country names, capitals and languages, with IPA.
-- Seven quiz modes: Locate, Identify, Capitals, Flags, Languages, Currencies and Neighbours.
+- Seven quiz modes: Locate, Identify, Capitals, Flags, Languages, Currencies and Neighbors, for the whole world or any mix of continents.
 - No giveaway questions. If an answer contains the country's name, the wrong options are made just as convincing.
 - A daily challenge, XP levels, mastery by region and achievements.
 - Light and dark themes, works on phone and desktop, no sign-up. Progress is saved in the browser.

@@ -263,6 +263,7 @@ function startQuiz({ mode, region, n, timer, daily = false, questions }) {
   coverage(false);
   cancelAnimationFrame(raf);
   const qs = questions || buildQuestions(mode, region, n, Math.random);
+  M.focus = region && region !== "World" ? new Set(region.split(",")) : null;
   Q = {
     mode,
     region,
@@ -312,6 +313,7 @@ function endQuiz() {
   cancelAnimationFrame(raf);
   Q = null;
   QL.innerHTML = "";
+  M.focus = null;
   document.body.classList.remove("quiz");
   M.forceCountry = false;
   M.tipOn = true;

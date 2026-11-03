@@ -512,7 +512,7 @@ const M = {
     $("#sbEnd").textContent = fmt(nice) + (km ? " km" : " m");
     el.classList.add("on");
     clearTimeout(this.sbT);
-    this.sbT = setTimeout(() => el.classList.remove("on"), 1300);
+    this.sbT = setTimeout(() => el.classList.remove("on"), 650);
   },
   countryMode() {
     return this.forceCountry || this.worldPx() > 2600;
@@ -532,7 +532,7 @@ const M = {
     const p = this.pal,
       st = this.state.get(id);
     if (st) return p[st] || p.ink;
-    if (this.dim) return p.land;
+    if (this.dim || (this.focus && !this.focus.has(regionOf(id)))) return p.land;
     const ci = COLOR.get(id) ?? 0,
       reg = regionOf(id);
     if (this.mix >= 1) return p.p[ci];
@@ -901,7 +901,7 @@ const M = {
     if (best) return best;
     const hi = this.hiRes();
     for (const r of RHIT) {
-      if (!r.c || !r.b) continue;
+      if (!(r.c || (r.id === "ATA" && this.t < 0.5)) || !r.b) continue;
       const b = r.b10 || r.b;
       if (bx < b[0][0] || bx > b[1][0] || by < b[0][1] || by > b[1][1]) continue;
       const path = (hi && r.p10) || r.p || r.p10;
@@ -925,11 +925,22 @@ const M = {
       if (cur === "globe") return this.setGeoid(true, done);
       return this.morph(cur, "globe", () => this.setGeoid(true, done));
     }
-    if (cur === "geoid")
-      return this.setGeoid(false, () => {
-        if (name === "globe") done && done();
-        else this.morph("globe", name, done);
+    if (cur === "geoid") {
+      if (name === "globe") return this.setGeoid(false, done);
+      if (reduced()) {
+        this.geoAmt = 0;
+        this.geoLegend();
+        return this.morph("globe", name, done);
+      }
+      this.ghost = this.snap();
+      this.ghostA = 1;
+      this.geoAmt = 0;
+      this.geoLegend();
+      return this.morph("globe", name, () => {
+        this.ghost = null;
+        done && done();
       });
+    }
     if (name === "globe" || cur === "globe") {
       this.morph(cur, name, done);
       return;
@@ -1082,12 +1093,13 @@ const M = {
     this.toBounds(this.union(ids.map((i) => this.boundsOf(i))), Infinity, fill, dur);
   },
   toRegion(r, dur = 800) {
-    if (!REGION_BOX[r]) {
+    const RB = regionBox(r);
+    if (!RB) {
       this.world(dur);
       return;
     }
     if (this.mode === "globe") return this.gToRegion(r, dur);
-    const [[a, b], [c, d]] = REGION_BOX[r];
+    const [[a, b], [c, d]] = RB;
     const pts = [];
     for (let i = 0; i <= 8; i++)
       for (let j = 0; j <= 8; j++)

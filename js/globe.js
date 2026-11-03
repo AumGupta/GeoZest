@@ -5,6 +5,13 @@ const mercClamp = (l, p) => mRaw(l, Math.max(BOT, Math.min(TOP, p)));
 const flatRaw = (n) => (n === "merc" ? mercClamp : eeRaw);
 const GRAT = d3.geoGraticule10();
 const SPHERE = { type: "Sphere" };
+const OUT85 = d3
+  .geoGraticule()
+  .extentMajor([
+    [-180, -85],
+    [180, 85],
+  ])
+  .outline();
 
 for (const r of RECS) {
   const geo = r.f50
@@ -261,6 +268,7 @@ Object.assign(M, {
     this.busy = true;
     this.gStop();
     const fin = () => {
+      this.ghost = null;
       this.geoAmt = to;
       this.busy = false;
       this.fadeAt = performance.now();
@@ -272,15 +280,34 @@ Object.assign(M, {
       fin();
       return;
     }
+    this.ghost = this.snap();
+    this.ghostA = 1;
+    this.geoAmt = to;
     const tm = d3.timer((el) => {
-      const u = Math.min(1, el / 700);
-      this.geoAmt = from + (to - from) * d3.easeCubicInOut(u);
+      const u = Math.min(1, el / 520);
+      this.ghostA = 1 - d3.easeCubicInOut(u);
       this.draw();
       if (u >= 1) {
         tm.stop();
         fin();
       }
     });
+  },
+  snap() {
+    const c = document.createElement("canvas");
+    c.width = this.cv.width;
+    c.height = this.cv.height;
+    c.getContext("2d").drawImage(this.cv, 0, 0);
+    return c;
+  },
+  drawGhost() {
+    if (!this.ghost || this.ghostA <= 0) return;
+    const c = this.ctx;
+    c.save();
+    c.setTransform(1, 0, 0, 1, 0, 0);
+    c.globalAlpha = this.ghostA;
+    c.drawImage(this.ghost, 0, 0);
+    c.restore();
   },
   geoLegend() {
     const el = $("#geoLegend");
@@ -475,7 +502,12 @@ Object.assign(M, {
     this.gFlyTo(ctr, this.gScaleFor(rad, fill), dur);
   },
   gToRegion(r, dur = 800) {
-    const [[a, b], [c, d]] = REGION_BOX[r];
+    const RB = regionBox(r);
+    if (!RB) {
+      this.gWorld(dur);
+      return;
+    }
+    const [[a, b], [c, d]] = RB;
     const ctr = [(a + c) / 2, (b + d) / 2];
     const rad = Math.max(d3.geoDistance(ctr, [a, b]), d3.geoDistance(ctr, [c, d]));
     this.gFlyTo(ctr, this.gScaleFor(rad, 0.98), dur);
@@ -513,7 +545,7 @@ Object.assign(M, {
     }
     if (best) return best;
     for (const r of RHIT) {
-      if (!r.c || !r.gc) continue;
+      if (!(r.c || r.id === "ATA") || !r.gc) continue;
       if (d3.geoDistance(ll, r.gc) > r.gr + 0.01) continue;
       const g = gGeom(r, "50");
       if (g && d3.geoContains(g, ll)) return r.id;
@@ -579,6 +611,31 @@ Object.assign(M, {
       path(SPHERE);
       c.fillStyle = ocean;
       c.fill();
+    } else if (this.mode === "morph" && g > 0) {
+      const out = this.morphTo === "merc" ? OUT85 : SPHERE;
+      c.save();
+      c.beginPath();
+      path(out);
+      c.globalAlpha = 0.25 + 0.6 * g;
+      c.fillStyle = p.gocean;
+      c.fill();
+      c.clip();
+      const sh = c.createRadialGradient(
+        cx - R * 0.42,
+        cy - R * 0.46,
+        R * 0.04,
+        cx - R * 0.1,
+        cy - R * 0.1,
+        R * 1.15,
+      );
+      sh.addColorStop(0, p.glight);
+      sh.addColorStop(0.45, "rgba(255,255,255,0)");
+      sh.addColorStop(0.82, "rgba(0,0,0,0)");
+      sh.addColorStop(1, p.rim);
+      c.globalAlpha = g;
+      c.fillStyle = sh;
+      c.fillRect(cx - R * 1.6, cy - R * 1.6, R * 3.2, R * 3.2);
+      c.restore();
     }
     c.save();
     if (round) {
@@ -595,13 +652,31 @@ Object.assign(M, {
     c.globalAlpha = 1 - hv * 0.6;
     c.stroke();
     c.globalAlpha = 1;
+    const LA = this.mode === "morph" ? (this.landA ?? 1) : 1;
+    if (LA < 1) {
+      c.strokeStyle = p.ink;
+      c.lineWidth = 0.7;
+      c.globalAlpha = (1 - LA) * 0.28;
+      c.beginPath();
+      path(GRAT);
+      c.stroke();
+      if (this.morphTo !== "merc") {
+        c.lineWidth = 1.3;
+        c.globalAlpha = (1 - LA) * 0.55;
+        c.beginPath();
+        path(SPHERE);
+        c.stroke();
+      }
+      c.globalAlpha = 1;
+      c.lineWidth = 1;
+    }
     const now = performance.now(),
       pa = 0.55 + 0.45 * Math.cos(now / 220);
     let pulse = false;
     const outl = [];
     const ga = this.geoAmt || 0;
     c.lineJoin = "round";
-    for (const r of RECS) {
+    for (const r of LA > 0.01 ? RECS : []) {
       if (!r.gc) continue;
       if (cull && d3.geoDistance(r.gc, cull[0]) - r.gr > cull[1]) continue;
       if (r.id === "ATA" && g < 0.5 && this.morphTo === "merc") continue;
@@ -615,24 +690,25 @@ Object.assign(M, {
       const fa = st ? 1 : 1 - hv * 0.88;
       if (st === "target") {
         pulse = true;
-        c.globalAlpha = pa;
-      } else c.globalAlpha = fa;
+        c.globalAlpha = pa * LA;
+      } else c.globalAlpha = fa * LA;
       c.fillStyle = this.fillFor(r.id);
       c.fill("evenodd");
-      c.globalAlpha = 1;
+      c.globalAlpha = LA;
       c.lineWidth = 0.8;
       if (hv > 0.3) {
         c.strokeStyle = p.night ? "rgba(255,255,255,.45)" : "rgba(0,0,0,.42)";
         c.stroke();
+        c.globalAlpha = 1;
       } else {
         const m = Math.max(this.mix, hv);
         if (m < 1) {
           c.strokeStyle = c.fillStyle;
-          c.globalAlpha = st === "target" ? pa : fa;
+          c.globalAlpha = (st === "target" ? pa : fa) * LA;
           c.stroke();
         }
         if (m > 0) {
-          c.globalAlpha = m;
+          c.globalAlpha = m * LA;
           c.strokeStyle = p.edge;
           c.stroke();
         }
@@ -642,11 +718,13 @@ Object.assign(M, {
     }
     c.lineWidth = 1.6;
     c.strokeStyle = p.ink;
+    c.globalAlpha = LA;
     for (const geo of outl) {
       c.beginPath();
       path(geo);
       c.stroke();
     }
+    c.globalAlpha = 1;
     c.restore();
     if (fx > 0.01 && round) {
       c.save();
@@ -706,11 +784,14 @@ Object.assign(M, {
     this.drawLabels();
     this.drawPins();
     c.globalAlpha = 1;
+    this.drawGhost();
     if (pulse || pending) this.sched();
   },
   mDraw() {
-    if (this.mproj)
+    if (this.mproj) {
       this.paintGeo(this.mproj, "110", this.mGlobe, this.mcx, this.mcy, this.mproj.scale(), null);
+      this.drawGhost();
+    }
   },
 
   morph(from, to, done) {
@@ -731,6 +812,17 @@ Object.assign(M, {
       this.mut(this.t);
       this.fitBase();
       s1 = Math.max(this.s, s0);
+    }
+    let fx = cx,
+      fy = cy;
+    if (!toGlobe) {
+      const k = Math.max(1, s1 / this.s),
+        q = this.proj(centre);
+      if (q) {
+        const t = this.hard(d3.zoomIdentity.translate(cx - q[0] * k, cy - q[1] * k).scale(k));
+        fx = t.x + q[0] * k;
+        fy = t.y + q[1] * k;
+      }
     }
     const rawA = toGlobe ? flatRaw(flatName) : orthoRaw,
       rawB = toGlobe ? orthoRaw : flatRaw(flatName);
@@ -758,18 +850,22 @@ Object.assign(M, {
       mut(e);
       const g = toGlobe ? e : 1 - e;
       this.mGlobe = g;
+      this.landA =
+        u < 0.26 ? 1 - d3.easeCubicOut(u / 0.26) : u > 0.7 ? d3.easeCubicIn((u - 0.7) / 0.3) : 0;
+      if (this.ghost) this.ghostA = 1 - d3.easeCubicOut(Math.min(1, u / 0.3));
       pj.clipAngle(g > 0.002 ? Math.min(179.5, 90 + 90 * (1 - g)) : null)
         .rotate([-centre[0], -centre[1] * g])
         .scale(Math.exp(Math.log(s0) + (Math.log(s1) - Math.log(s0)) * e))
         .translate([0, 0]);
       const q = pj(centre) || [0, 0];
-      pj.translate([cx - q[0], cy - q[1]]);
+      pj.translate([cx + (fx - cx) * e - q[0], cy + (fy - cy) * e - q[1]]);
       this.draw();
     };
     const fin = () => {
       this.mproj = null;
       this.busy = false;
       this.fadeAt = performance.now();
+      this.landA = 1;
       this.geoLegend();
       if (toGlobe) {
         this.mode = "globe";
@@ -784,8 +880,14 @@ Object.assign(M, {
         this.sched();
       } else {
         this.mode = "flat";
-        this.build("50");
+        this.build("110");
         this.recentre(centre, Math.max(1, s1 / this.s));
+        setTimeout(() => {
+          if (this.mode === "flat" && !this.busy) {
+            this.build("50");
+            this.sched();
+          }
+        }, 120);
       }
       done && done();
     };

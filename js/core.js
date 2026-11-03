@@ -107,6 +107,8 @@ const I = {
     '<svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor" aria-hidden="true"><path d="M12 2c1 4 6 6 6 12a6 6 0 0 1-12 0c0-3 2-5 3-6 0 2 1 3 2 3-1-3 0-6 1-9z"/></svg>',
   timer:
     '<svg class="i" viewBox="0 0 24 24" style="width:15px;height:15px"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2 2M9 2h6"/></svg>',
+  timerOff:
+    '<svg class="i" viewBox="0 0 24 24" style="width:15px;height:15px"><path d="M9 2h6M7.2 7.6A8 8 0 0 0 17.4 18.8M19.6 15.6A8 8 0 0 0 10 5.2M3 4l18 18"/></svg>',
   sun: ic(
     '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>',
   ),
@@ -425,15 +427,39 @@ const MODES = {
   flags: { t: "Flags", ok: (c) => !!G.flags[c.a2] },
   languages: { t: "Languages", ok: (c) => c.l.length > 0 },
   currencies: { t: "Currencies", ok: (c) => c.cur.length > 0 },
-  neighbours: { t: "Neighbours", ok: (c) => c.b.some((x) => C.has(x)) },
+  neighbours: { t: "Neighbors", ok: (c) => c.b.some((x) => C.has(x)) },
   mixed: { t: "Mixed", ok: () => true },
 };
 const SKILLS = Object.keys(MODES).filter((k) => k !== "mixed");
 function poolFor(mode, region) {
+  const R = region === "World" ? null : region.split(",");
   return G.countries.filter(
-    (c) =>
-      (c.ind || S.settings.terr) && (region === "World" || c.r === region) && MODES[mode].ok(c),
+    (c) => (c.ind || S.settings.terr) && (!R || R.includes(c.r)) && MODES[mode].ok(c),
   );
+}
+function regionBox(r) {
+  const L = String(r)
+    .split(",")
+    .filter((x) => REGION_BOX[x]);
+  if (!L.length) return null;
+  if (L.length === 1) return REGION_BOX[L[0]];
+  let a = 180,
+    b = 90,
+    c = -180,
+    d = -90;
+  for (const x of L) {
+    const [[a1, b1], [c1, d1]] = REGION_BOX[x];
+    a = Math.min(a, a1);
+    b = Math.min(b, b1);
+    c = Math.max(c, c1);
+    d = Math.max(d, d1);
+  }
+  return c - a > 200
+    ? null
+    : [
+        [a, b],
+        [c, d],
+      ];
 }
 function rec(mode, id) {
   return (S.prog[mode] || {})[id];
