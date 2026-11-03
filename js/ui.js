@@ -30,6 +30,8 @@ function sheetOpen(kind, top, body, { snap = "full", onClose, foot = "" } = {}) 
     document.body.classList.add("sheet-up");
     SH.el.style.left = SH.el.style.top = "";
     SH.el.style.maxHeight = "";
+    SH.el.classList.toggle("tall", kind === "search");
+    fitTall();
     if (!was) {
       SH.el.classList.remove("anim");
       SH.el.style.transform = `translateY(${innerHeight}px)`;
@@ -38,7 +40,8 @@ function sheetOpen(kind, top, body, { snap = "full", onClose, foot = "" } = {}) 
     requestAnimationFrame(() => snapTo(snap));
   } else {
     SH.el.style.transform = "";
-    SH.el.classList.remove("peek");
+    SH.el.classList.remove("peek", "tall");
+    SH.el.style.height = "";
     SH.state = "full";
     if (!SH.pos) SH.pos = { x: 16, y: 68 };
     placeDesk();
@@ -54,6 +57,20 @@ function sheetOpen(kind, top, body, { snap = "full", onClose, foot = "" } = {}) 
   }
   $$("[data-close]", SH.el).forEach((b) => (b.onclick = sheetClose));
 }
+function fitTall() {
+  if (!SH.el.classList.contains("tall") || !isPhone()) {
+    SH.el.style.height = "";
+    return;
+  }
+  const v = window.visualViewport;
+  SH.el.style.top = (v ? v.offsetTop : 0) + "px";
+  SH.el.style.height = (v ? v.height : innerHeight) + "px";
+}
+if (window.visualViewport) {
+  visualViewport.addEventListener("resize", fitTall);
+  visualViewport.addEventListener("scroll", fitTall);
+}
+addEventListener("resize", () => setTimeout(fitTall));
 function placeDesk() {
   const w = SH.el.offsetWidth || 380;
   SH.pos.x = Math.max(8, Math.min(innerWidth - w - 8, SH.pos.x));
@@ -127,6 +144,7 @@ function setInset() {
     lastT,
     vel = 0;
   SH.head.addEventListener("pointerdown", (e) => {
+    if (SH.el.classList.contains("tall")) return;
     if (e.target.closest("button,input,a,label")) return;
     dragging = true;
     moved = false;
@@ -428,10 +446,7 @@ async function openSay(id) {
     secs = [
       ["Country", j.name],
       ["Capital", j.cap],
-      [
-        "Language" + ((j.lang || []).filter((r) => r.l === "English").length > 1 ? "s" : ""),
-        j.lang,
-      ],
+      ["Language" + (c.l.length > 1 ? "s" : ""), j.lang],
     ];
   } catch (e) {
     secs = [
@@ -461,7 +476,7 @@ async function openSay(id) {
           `<div class="say-h">${h}</div><ul class="list says">${r.map(rowH).join("")}</ul>`,
       )
       .join("")}</div>
-    <div class="say-note">Audio is synthesised: Kokoro and Piper neural voices where they speak the language, eSpeak NG otherwise.</div>`;
+    <div class="say-note">Audio is synthesised with neural voices trained on native speakers where available, and eSpeak NG otherwise.</div>`;
   const first = d.querySelector("[data-i]:not([disabled])");
   first && first.focus({ preventScroll: true });
 }
@@ -510,14 +525,11 @@ function deselect() {
     M.setPins([]);
   }
 }
-function openCountry(id) {
-  const c = C.get(id);
-  if (!c) return;
+function detailRows(c) {
+  const id = c.id;
   const nb = c.b.map((x) => C.get(x)).filter(Boolean);
   const rank = areaRank.get(id);
-  const reg = REGIONS.includes(c.r) ? c.r : "World";
-  const top = `<div class="row-x"><span class="cap">${esc(c.sr || c.r)}${c.ind ? "" : ", territory"}</span><button class="x" data-close aria-label="Close">${I.x}</button></div>`;
-  const body = `<div data-peek-end>${countryBlock(c, { fact: false })}</div><div class="gap"></div>${funHTML(c)}<div class="gap"></div><div class="rows">
+  return `<div class="rows">
     <div class="kv"><span class="k">Currency</span><span class="v">${c.cur.map((x) => `${esc(x[1])} <small>${esc(x[0])} ${esc(x[2])}</small>`).join("<br>") || "n/a"}</span></div>
     ${rank ? `<div class="kv"><span class="k">Size rank</span><span class="v mono">#${rank} <small>of ${sovereign.length}</small></span></div>` : ""}
     ${c.dm ? `<div class="kv"><span class="k">People</span><span class="v">${esc(c.dm)}</span></div>` : ""}
@@ -526,7 +538,16 @@ function openCountry(id) {
     <div class="kv"><span class="k">Dial, web</span><span class="v mono">${esc(c.cc || "n/a")}  ${esc(c.tld || "")}</span></div>
     <div class="kv"><span class="k">Centre</span><span class="v mono">${fmtLL(c.ll)}</span></div>
     <div class="kv"><span class="k">Mastered</span><span class="v mono">${countryScore(id)} / ${SKILLS.length}</span></div>
-  </div><div class="gap"></div><button class="btn ghost w" id="quizHere">Quiz ${esc(reg)}</button>`;
+  </div>`;
+}
+function openCountry(id) {
+  const c = C.get(id);
+  if (!c) return;
+  const nb = c.b.map((x) => C.get(x)).filter(Boolean);
+  const rank = areaRank.get(id);
+  const reg = REGIONS.includes(c.r) ? c.r : "World";
+  const top = `<div class="row-x"><span class="cap">${esc(c.sr || c.r)}${c.ind ? "" : ", territory"}</span><button class="x" data-close aria-label="Close">${I.x}</button></div>`;
+  const body = `<div data-peek-end>${countryBlock(c, { fact: false })}</div><div class="gap"></div>${funHTML(c)}<div class="gap"></div>${detailRows(c)}<div class="gap"></div><button class="btn ghost w" id="quizHere">Quiz ${esc(reg)}</button>`;
   sheetOpen("country", top, body, { snap: "peek", onClose: deselect });
   deselect();
   selected = id;

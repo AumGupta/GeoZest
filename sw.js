@@ -1,4 +1,4 @@
-const CACHE = "geozest-v1";
+const CACHE = "geozest-v3";
 const SHELL = [
   "./",
   "index.html",
@@ -39,15 +39,14 @@ self.addEventListener("fetch", (e) => {
   const url = new URL(e.request.url);
   if (e.request.method !== "GET" || !HOSTS.includes(url.host)) return;
   e.respondWith(
-    caches.open(CACHE).then(async (c) => {
-      const hit = await c.match(e.request);
-      const net = fetch(e.request)
-        .then((r) => {
-          if (r.ok || r.type === "opaque") c.put(e.request, r.clone());
-          return r;
-        })
-        .catch(() => hit);
-      return hit || net;
-    }),
+    fetch(e.request)
+      .then((r) => {
+        if (r.ok || r.type === "opaque") {
+          const copy = r.clone();
+          caches.open(CACHE).then((c) => c.put(e.request, copy));
+        }
+        return r;
+      })
+      .catch(() => caches.match(e.request)),
   );
 });

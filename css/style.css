@@ -199,6 +199,44 @@ body.quiz .geo-legend,
 body.sheet-up .geo-legend {
   display: none;
 }
+@media (max-width: 699px) {
+  .ctrl .geo-legend {
+    position: static;
+    transform: none;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 7px;
+    width: 44px;
+    padding: 11px 0 10px;
+    border-radius: 14px;
+    font-size: 9.5px;
+    letter-spacing: -0.02em;
+  }
+  .ctrl .geo-legend .lt {
+    display: none;
+  }
+  .ctrl .geo-legend .hi {
+    order: 1;
+  }
+  .ctrl .geo-legend i {
+    order: 2;
+    width: 6px;
+    height: 110px;
+    background: linear-gradient(
+      0deg,
+      #ae81ff,
+      #66d9ef 25%,
+      #a6e22e 45%,
+      #e6db74 60%,
+      #fd971f 78%,
+      #f92672
+    );
+  }
+  .ctrl .geo-legend .lo {
+    order: 3;
+  }
+}
 .scalebar {
   position: fixed;
   left: calc(16px + env(safe-area-inset-left, 0px));
@@ -657,6 +695,21 @@ body.sheet-up .play {
     padding-bottom: env(safe-area-inset-bottom, 0px);
     padding-left: env(safe-area-inset-left, 0px);
     padding-right: env(safe-area-inset-right, 0px);
+  }
+}
+@media (max-width: 700px) {
+  .sheet.tall {
+    top: 0;
+    bottom: auto;
+    max-height: none;
+    border-radius: 0 0 20px 20px;
+    padding-top: env(safe-area-inset-top, 0px);
+  }
+  .sheet.tall .grab {
+    display: none;
+  }
+  .sheet.tall .sheet-head {
+    padding-top: 12px;
   }
 }
 @media (min-width: 701px) {
@@ -1510,6 +1563,31 @@ body.sheet-up .play {
     max-height: calc(100dvh - 120px);
     overflow: auto;
   }
+}
+.qp.drawer {
+  overflow: hidden;
+  transition: height 0.3s var(--ease);
+}
+.qp.drawer.full {
+  overflow: auto;
+  overscroll-behavior: contain;
+  z-index: 17;
+}
+.qp.drawer:not(.full) {
+  touch-action: none;
+}
+.qgrab {
+  margin: -10px 0 -6px;
+  padding: 0 0 4px;
+  cursor: pointer;
+  touch-action: none;
+  flex: none;
+}
+.qgrab .grab {
+  margin: 0 auto;
+}
+.qp.nomore .qgrab {
+  display: none;
 }
 @media (min-width: 701px) {
   .qp {

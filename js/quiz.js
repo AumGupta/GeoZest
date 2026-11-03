@@ -509,10 +509,17 @@ function showInfo(ok, q, p, picked, frame, timedOut) {
     qp.id = "qp";
     QL.appendChild(qp);
   }
-  qp.innerHTML = countryBlock(C.get(q.ans), {
-    right: `<button class="btn" id="nx">${Q.i + 1 < Q.qs.length ? "Next" : "Results"}</button>`,
-    extra: extraRow(q),
-  });
+  const c = C.get(q.ans);
+  qp.className = "qp drawer";
+  qp.innerHTML = `<div class="qgrab" aria-hidden="true"><div class="grab"></div></div><div data-peek-end>${countryBlock(c, { right: `<button class="btn" id="nx">${Q.i + 1 < Q.qs.length ? "Next" : "Results"}</button>`, extra: extraRow(q) })}</div>${detailRows(c)}`;
+  $$("[data-nb]", qp).forEach(
+    (b) =>
+      (b.onclick = () => {
+        M.setPins([b.dataset.nb]);
+        M.toId(b.dataset.nb, 0.7, 800);
+      }),
+  );
+  drawer(qp);
   $("#nx").onclick = next;
   $("#nx").focus({ preventScroll: true });
   requestAnimationFrame(() => {
@@ -522,6 +529,66 @@ function showInfo(ok, q, p, picked, frame, timedOut) {
     M.toIds(frame, 0.82, 900);
   });
 }
+function drawer(el) {
+  const pe = el.querySelector("[data-peek-end]");
+  let full = false,
+    y0 = null,
+    moved = false;
+  const maxH = () => Math.min(el.scrollHeight, innerHeight - (isPhone() ? 100 : 120));
+  const peekH = () =>
+    Math.min(
+      maxH(),
+      pe.offsetTop + pe.offsetHeight + parseFloat(getComputedStyle(el).paddingBottom),
+    );
+  const set = (f) => {
+    full = f;
+    el.classList.toggle("full", f);
+    if (!f) el.scrollTop = 0;
+    el.style.height = (f ? maxH() : peekH()) + "px";
+  };
+  el._fit = () => {
+    el.classList.toggle("nomore", peekH() >= maxH() - 2);
+    set(full);
+  };
+  el._fit();
+  el.onpointerdown = (e) => {
+    const g = e.target.closest(".qgrab");
+    if (!g && (full || e.target.closest("button,a"))) return;
+    y0 = e.clientY;
+    moved = false;
+  };
+  el.onpointermove = (e) => {
+    if (y0 !== null && Math.abs(e.clientY - y0) > 6) moved = true;
+  };
+  el.onpointerup = (e) => {
+    if (y0 === null) return;
+    const dy = e.clientY - y0;
+    y0 = null;
+    if (!moved) {
+      if (e.target.closest(".qgrab")) set(!full);
+      return;
+    }
+    if (dy < -24 && !full) set(true);
+    else if (dy > 24 && full) set(false);
+  };
+  el.onpointercancel = () => {
+    y0 = null;
+  };
+  el.addEventListener(
+    "wheel",
+    (e) => {
+      if (!full && e.deltaY > 0) {
+        e.preventDefault();
+        set(true);
+      } else if (full && e.deltaY < 0 && el.scrollTop <= 0) set(false);
+    },
+    { passive: false },
+  );
+}
+addEventListener("resize", () => {
+  const d = document.querySelector("#qp.drawer");
+  d && d._fit && d._fit();
+});
 function answer(id) {
   if (!Q || Q.answered) return;
   const q = Q.qs[Q.i];

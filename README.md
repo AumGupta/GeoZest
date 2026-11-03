@@ -1,8 +1,11 @@
-# GeoZest
+<div align="center">
 
-![GitHub License](https://img.shields.io/github/license/AumGupta/GeoZest)
-![GitHub last commit](https://img.shields.io/github/last-commit/AumGupta/GeoZest)
-![GitHub repo size](https://img.shields.io/github/repo-size/AumGupta/GeoZest)
+# **Geo**Zest
+
+[![Play now](https://img.shields.io/badge/Play-now-000000?logo=googlechrome&logoColor=white)](https://aumgupta.github.io/GeoZest/)
+[![Sponsor](https://img.shields.io/badge/Sponsor-%E2%9D%A4-ea4aaa?logo=githubsponsors&logoColor=white)](https://github.com/sponsors/AumGupta)
+[![GitHub stars](https://img.shields.io/github/stars/AumGupta/GeoZest?style=flat&logo=github)](https://github.com/AumGupta/GeoZest/stargazers)
+[![License](https://img.shields.io/github/license/AumGupta/GeoZest)](LICENSE)
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/assets/logo-light.svg">
@@ -12,6 +15,8 @@
 GeoZest is a minimal, map-first geography quiz game. Explore every country on a 3D globe, hear how places are said in their own languages, and test yourself on maps, flags, capitals, languages, currencies and borders.
 
 **Try it:** [aumgupta.github.io/GeoZest](https://aumgupta.github.io/GeoZest/)
+
+</div>
 
 ## Features
 
@@ -34,7 +39,7 @@ GeoZest is a minimal, map-first geography quiz game. Explore every country on a 
   <img src="docs/assets/screenshots/4.png" width="24%" alt="Geoid view">
 </p>
 
-## How scoring works?
+## How Scoring Works
 
 ### Points in a quiz
 
@@ -65,7 +70,7 @@ Questions are picked to help you learn. Countries you got wrong come back more o
 - The **Daily** quiz has 6 mixed questions that stay the same all day, and you can play it once a day.
 - Your **day streak** counts the days in a row on which you finished at least one quiz.
 
-## How your progress is saved?
+## How Your Progress Is Saved
 
 - Everything is saved **in your browser only**, using local storage. There is no account, no server and no tracking, so nothing about you leaves your device.
 - It saves after every answer, so closing the tab mid-quiz loses nothing.
