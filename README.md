@@ -24,7 +24,7 @@ GeoZest is a minimal, map-first geography quiz game. Explore every country on a 
 - Four map views: Globe, Geoid (EGM96 heights), Equal Earth and Mercator, with smooth morphs between them.
 - Country cards with population, area, languages, currency, borders and a fun fact.
 - Native pronunciations of country names, capitals and languages, with IPA.
-- Seven quiz modes: Locate, Identify, Capitals, Flags, Languages, Currencies and Neighbors, for the whole world or any mix of continents.
+- Seven quiz modes: Locate, Identify, Capitals, Flags, Languages, Currencies and Neighbors, for the whole world or any mix of continents, with or without small islands and territories.
 - No giveaway questions. If an answer contains the country's name, the wrong options are made just as convincing.
 - A daily challenge, XP levels, mastery by region and achievements.
 - Light and dark themes, works on phone and desktop, no sign-up. Progress is saved in the browser.
@@ -51,7 +51,7 @@ For example, answering in 3 seconds as your fourth correct answer in a row gives
 
 ### XP and levels
 
-At the end of a quiz, your points turn into XP: **1 XP for every 10 points**, plus **10 XP** for finishing and **25 XP** for a perfect round.
+At the end of a quiz, your points turn into XP: **1 XP for every 10 points**, plus **10 XP** for finishing, **25 XP** for a perfect round and **50 XP** for the daily challenge.
 
 Each level needs 100 XP more than the one before: 100 XP to reach level 2, 200 more to reach level 3, and so on.
 
@@ -67,7 +67,7 @@ Questions are picked to help you learn. Countries you got wrong come back more o
 
 ### Daily challenge and streaks
 
-- The **Daily** quiz has 6 mixed questions that stay the same all day, and you can play it once a day.
+- The **Daily challenge** is a new task each day, the same for everyone, like "Recognise 6 flags in Africa". You can play it once a day, and finishing it earns a **50 XP bonus**.
 - Your **day streak** counts the days in a row on which you finished at least one quiz.
 
 ## How Your Progress Is Saved
@@ -142,6 +142,7 @@ npm run build:data
 ## Data & Credits
 
 - Borders: [Natural Earth](https://www.naturalearthdata.com/) via [world-atlas](https://github.com/topojson/world-atlas).
+- Vatican City outline: [geoBoundaries](https://www.geoboundaries.org/) (gbOpen), since it is too small to survive the simplified Natural Earth data.
 - Country details: [world-countries](https://github.com/mledoze/countries).
 - Capitals: [SimpleMaps World Cities](https://simplemaps.com/data/world-cities) (CC BY 4.0).
 - Population: [World Bank](https://data.worldbank.org/indicator/SP.POP.TOTL), latest year per country.

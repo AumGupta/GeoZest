@@ -293,7 +293,7 @@ function checkAch() {
 function renderChrome() {
   const L = lvlInfo(S.xp);
   $("#meLvl").textContent = L.n;
-  $("#meRing").style.setProperty("--p", L.pct);
+  $("#meRing").setAttribute("stroke-dasharray", `${L.pct} 100`);
   $("#btnProj").textContent =
     { globe: "3D", geoid: "GEO", ee: "EE", merc: "MRC" }[S.settings.proj] || "3D";
   $("#dailyDot").hidden = !!S.daily[todayKey()];
@@ -699,35 +699,97 @@ function cardArt(k) {
   return `<svg class="art" viewBox="0 0 100 100" preserveAspectRatio="xMidYMid slice" aria-hidden="true">${out}</svg>`;
 }
 let playMoved = false;
+const CK =
+  '<svg class="i ck" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>';
+const PLUS =
+  '<svg class="i ck" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 6v12M6 12h12"/></svg>';
+const MDESC = {
+  locate: "Find the country on the map",
+  identify: "Name the highlighted country",
+  capitals: "Pick each country's capital",
+  flags: "Name the country from its flag",
+  languages: "Find where a language is official",
+  currencies: "Pick each country's currency",
+  neighbours: "Spot the country that shares a border",
+  mixed: "A bit of everything",
+};
+const CHEV = '<svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>';
+let pickOpen = false;
 function openPlay() {
-  if (SH.kind !== "play") playMoved = false;
+  const again = SH.kind === "play";
+  if (!again) {
+    playMoved = false;
+    pickOpen = false;
+  }
+  const prev = again
+    ? new Map(
+        [...SH.body.querySelectorAll("[data-r]")].map((b) => [
+          b.dataset.r,
+          b.getBoundingClientRect(),
+        ]),
+      )
+    : null;
   const st = S.settings;
   const dd = S.daily[todayKey()];
-  const keep = SH.kind === "play" ? SH.body.scrollTop : 0;
+  const keep = again ? SH.body.scrollTop : 0;
   const sel = st.region === "World" ? [] : st.region.split(",");
+  if (!MODES[st.pick]) st.pick = "locate";
+  const regs = ["World", ...REGIONS],
+    on = (r) => (r === "World" ? !sel.length : sel.includes(r));
+  const chip = (r) =>
+    `<button class="pill rchip${on(r) ? "" : " add"}" data-r="${r}" aria-pressed="${on(r)}">${on(r) ? CK : PLUS}${r}</button>`;
+  const rest = regs.filter((r) => !on(r));
+  const pct = (k) => {
+    const m = mastery(k, st.region);
+    return m.t ? Math.round((m.n / m.t) * 100) : 0;
+  };
+  const dt = dailyTask(),
+    streak = dayStreak();
+  const daily = dd
+    ? `<div class="dcard done"><span class="dc-ic">${I.daily}</span><span class="dc-tx"><span class="dc-k">Daily challenge</span><b>Done, ${dd.c} of ${dd.t} correct</b><span class="dc-s">${streak > 1 ? `${streak}-day streak. ` : ""}New challenge tomorrow</span></span><span class="dc-ok">${CK}</span></div>`
+    : `<button class="dcard" data-daily><span class="dc-ic">${I.daily}</span><span class="dc-tx"><span class="dc-k">Daily challenge</span><b>${dt.text}</b><span class="dc-s">${dt.where}, +${DAILY_XP} bonus XP</span></span><span class="dc-go">Play</span></button>`;
+  const row = (k, tag, attrs) =>
+    `<${tag} ${attrs}><span class="gp-ic">${I[k]}</span><span class="gp-tx"><b>${MODES[k].t}</b><span>${MDESC[k]}</span></span><span class="gp-p">${pct(k)}%</span>`;
   const top = `<div class="row-x"><h2 class="title">Play</h2><button class="x" data-close aria-label="Close">${I.x}</button></div>`;
-  const card = (k, t, right, attrs = "", cls = "") =>
-    `<button class="mcard${cls}" ${attrs}>${cardArt(k)}<span class="mc-i">${I[k]}</span><span class="mc-t">${t}</span><span class="mc-p">${right}</span></button>`;
-  const body = `<div class="popts">
-      <span class="plabel">Region</span><div class="prow wrap" role="group" aria-label="Region">${["World", ...REGIONS].map((r) => `<button class="pill" data-r="${r}" aria-pressed="${r === "World" ? !sel.length : sel.includes(r)}">${r}</button>`).join("")}</div>
-      <span class="plabel">Questions</span><div class="prow" role="group" aria-label="Number of questions">${[10, 20, 30].map((n) => `<button class="pill mono" data-l="${n}" aria-pressed="${n === st.len}" aria-label="${n} questions">${n}</button>`).join("")}
-      <button class="pill" data-t aria-pressed="${st.timer}" aria-label="Timer ${st.timer ? "on" : "off"}" style="margin-left:auto">${st.timer ? I.timer : I.timerOff}Timer</button></div>
-    </div>
+  const body = `${daily}
     <div class="gap"></div>
-    <div class="mgrid">
-      ${card("daily", "Daily", dd ? `${dd.c}/${dd.t}` : `<span class="newb">New</span>`, `data-daily ${dd ? "disabled" : ""}`, dd ? "" : " dnew")}
-      ${Object.keys(MODES)
-        .map((k) => {
-          const m = mastery(k, st.region);
-          const p = m.t ? Math.round((m.n / m.t) * 100) : 0;
-          return card(k, MODES[k].t, p + "%", `data-m="${k}"`);
-        })
-        .join("")}
+    <div class="cap gcap">Game</div>
+    ${row(st.pick, "button", `class="gpick" id="gpick" aria-expanded="${pickOpen}" aria-controls="glist"`)}${cardArt(st.pick)}<span class="gp-ch">${CHEV}</span></button>
+    <div class="glist" id="glist" role="listbox" aria-label="Game type" ${pickOpen ? "" : "hidden"}>${Object.keys(
+      MODES,
+    )
+      .map(
+        (k) =>
+          row(
+            k,
+            "button",
+            `class="gopt" role="option" data-pick="${k}" aria-selected="${k === st.pick}"`,
+          ) +
+          (k === st.pick ? `<span class="gp-ck">${CK}</span>` : "") +
+          "</button>",
+      )
+      .join("")}</div>
+    <div class="gap"></div>
+    <div class="popts">
+      <span class="plabel">Region</span><div class="prow wrap" role="group" aria-label="Selected region">${regs.filter(on).map(chip).join("")}</div>
+      ${rest.length ? `<div class="prow wrap ravail" role="group" aria-label="Add a region">${rest.map(chip).join("")}</div>` : ""}
+      <div class="pnote">${G.countries.filter((c) => inPlay(c) && (!sel.length || sel.includes(c.r))).length} countries${sel.length ? ` in ${sel.length === 1 ? sel[0] : sel.slice(0, -1).join(", ") + " and " + sel[sel.length - 1]}` : ", whole world"}</div>
+      <span class="plabel">Include</span><div class="prow" role="group" aria-label="Include"><button class="pill rchip" data-inc="isl" aria-pressed="${st.isl !== false}">${st.isl !== false ? CK : ""}Small islands</button><button class="pill rchip" data-inc="terr" aria-pressed="${!!st.terr}">${st.terr ? CK : ""}Territories</button></div>
+      <span class="plabel">Questions</span><div class="prow"><div class="seg" role="radiogroup" aria-label="Number of questions" style="--i:${Math.max(0, [10, 20, 30].indexOf(st.len))}">${[10, 20, 30].map((n) => `<button role="radio" data-l="${n}" aria-checked="${n === st.len}" aria-label="${n} questions">${n}</button>`).join("")}<span class="seg-k" aria-hidden="true"></span></div>
+      <span class="tgl"><span class="plabel">Timer</span><button class="sw tsw" role="switch" data-t aria-checked="${!!st.timer}" aria-label="Timer"><span class="knob"><span class="on">${I.timer}</span><span class="off">${I.timerOff}</span></span></button></span></div>
     </div>`;
+  const foot = `<button class="cta primary go" id="goPlay"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5.5v13l10.5-6.5z" fill="currentColor" stroke="none"/></svg><span>Start Game</span></button>`;
   sheetOpen("play", top, body, {
     snap: "full",
+    foot,
     onClose: () =>
       setTimeout(() => {
+        if (SH.kind === "play") return;
+        document.body.classList.remove("psheet");
+        if (!Q) {
+          M.focus = null;
+          M.sched();
+        }
         if (playMoved && !Q && !SH.kind) {
           playMoved = false;
           M.toRegion(S.settings.region, 700);
@@ -735,12 +797,49 @@ function openPlay() {
       }, 40),
   });
   SH.body.scrollTop = keep;
+  M.focus = sel.length ? new Set(sel) : null;
+  M.sched();
+  document.body.classList.add("psheet");
+  if (prev && !reduced())
+    for (const b of SH.body.querySelectorAll("[data-r]")) {
+      const a = prev.get(b.dataset.r);
+      if (!a) continue;
+      const n = b.getBoundingClientRect(),
+        dx = a.left - n.left,
+        dy = a.top - n.top;
+      if (!dx && !dy) continue;
+      b.style.transition = "none";
+      b.style.transform = `translate(${dx}px,${dy}px)`;
+      b.getBoundingClientRect();
+      b.style.transition = "transform .38s var(--ease)";
+      b.style.transform = "";
+    }
+  SH.foot.onclick = (e) => {
+    if (e.target.closest("#goPlay"))
+      startQuiz({ mode: st.pick, region: st.region, n: st.len, timer: st.timer });
+  };
   SH.body.onclick = (e) => {
+    if (e.target.closest("[data-daily]")) {
+      startDaily();
+      return;
+    }
+    if (e.target.closest("#gpick")) {
+      pickOpen = !pickOpen;
+      $("#glist").hidden = !pickOpen;
+      $("#gpick").setAttribute("aria-expanded", pickOpen);
+      return;
+    }
+    const pk = e.target.closest("[data-pick]");
+    if (pk) {
+      st.pick = pk.dataset.pick;
+      pickOpen = false;
+      save();
+      openPlay();
+      return;
+    }
     const r = e.target.closest("[data-r]"),
       l = e.target.closest("[data-l]"),
-      t = e.target.closest("[data-t]"),
-      m = e.target.closest("[data-m]"),
-      d = e.target.closest("[data-daily]");
+      t = e.target.closest("[data-t]");
     if (r) {
       const v = r.dataset.r;
       if (v === "World") st.region = "World";
@@ -761,20 +860,25 @@ function openPlay() {
     if (l) {
       st.len = +l.dataset.l;
       save();
+      const g = l.parentNode;
+      g.style.setProperty("--i", [10, 20, 30].indexOf(st.len));
+      g.querySelectorAll("[data-l]").forEach((b) => b.setAttribute("aria-checked", b === l));
+      return;
+    }
+    const inc = e.target.closest("[data-inc]");
+    if (inc) {
+      const k = inc.dataset.inc;
+      st[k] = k === "isl" ? st.isl === false : !st[k];
+      save();
       openPlay();
       return;
     }
     if (t) {
       st.timer = !st.timer;
       save();
-      openPlay();
+      t.setAttribute("aria-checked", !!st.timer);
       return;
     }
-    if (d && !d.disabled) {
-      startDaily();
-      return;
-    }
-    if (m) startQuiz({ mode: m.dataset.m, region: st.region, n: st.len, timer: st.timer });
   };
 }
 
@@ -831,6 +935,7 @@ function openMe() {
           `<button class="pill" data-pj="${k}" aria-pressed="${S.settings.proj === k}">${t}</button>`,
       )
       .join("")}</span></div>
+    <div class="set"><span>Small islands in quizzes</span><button class="sw" role="switch" data-s="isl" aria-checked="${S.settings.isl !== false}" aria-label="Small islands in quizzes"></button></div>
     <div class="set"><span>Territories in quizzes</span><button class="sw" role="switch" data-s="terr" aria-checked="${!!S.settings.terr}" aria-label="Territories in quizzes"></button></div>
     <div class="set"><span>Timer</span><button class="sw" role="switch" data-s="timer" aria-checked="${!!S.settings.timer}" aria-label="Timer"></button></div>
     <div class="set"><span>Progress</span><span id="rs" style="display:flex;gap:6px"><button class="pill" id="rsGo">Reset</button></span></div>

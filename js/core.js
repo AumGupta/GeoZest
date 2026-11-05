@@ -133,6 +133,7 @@ const defaults = () => ({
   settings: {
     timer: true,
     terr: false,
+    isl: true,
     proj: "globe",
     night: false,
     region: "World",
@@ -433,10 +434,10 @@ const MODES = {
 const SKILLS = Object.keys(MODES).filter((k) => k !== "mixed");
 function poolFor(mode, region) {
   const R = region === "World" ? null : region.split(",");
-  return G.countries.filter(
-    (c) => (c.ind || S.settings.terr) && (!R || R.includes(c.r)) && MODES[mode].ok(c),
-  );
+  return G.countries.filter((c) => inPlay(c) && (!R || R.includes(c.r)) && MODES[mode].ok(c));
 }
+const isIsle = (c) => !(c.b && c.b.length) && c.ar < 30000;
+const inPlay = (c) => (c.ind || S.settings.terr) && (S.settings.isl !== false || !isIsle(c));
 function regionBox(r) {
   const L = String(r)
     .split(",")

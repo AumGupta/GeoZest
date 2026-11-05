@@ -255,7 +255,7 @@ let Q = null,
   raf = 0;
 const QL = $("#quizLayer");
 function quizDots() {
-  return new Set(G.countries.filter((c) => c.ind || S.settings.terr).map((c) => c.id));
+  return new Set(G.countries.filter(inPlay).map((c) => c.id));
 }
 function startQuiz({ mode, region, n, timer, daily = false, questions }) {
   sheetClose();
@@ -289,25 +289,57 @@ function startQuiz({ mode, region, n, timer, daily = false, questions }) {
   M.onClick = guessMap;
   renderQ();
 }
+const DAILY_N = 6,
+  DAILY_XP = 50;
+const DAILY_DO = {
+  locate: "Find 6 countries on the map",
+  identify: "Name 6 highlighted countries",
+  capitals: "Name 6 capitals",
+  flags: "Recognise 6 flags",
+  languages: "Place 6 languages",
+  currencies: "Match 6 currencies",
+  neighbours: "Find 6 neighbors",
+};
+function dailyTask() {
+  const rng = rngFrom(hash("daily2" + todayKey()));
+  const mode = pick(SKILLS, rng);
+  let region = rng() < 0.4 ? "World" : pick(REGIONS, rng);
+  let P = sovereign.filter((c) => MODES[mode].ok(c) && (region === "World" || c.r === region));
+  if (P.length < 15) {
+    region = "World";
+    P = sovereign.filter(MODES[mode].ok);
+  }
+  return {
+    mode,
+    region,
+    P,
+    rng,
+    text: DAILY_DO[mode],
+    where: region === "World" ? "Worldwide" : `In ${region}`,
+  };
+}
 function startDaily() {
-  const rng = rngFrom(hash("daily" + todayKey()));
-  const used = new Set();
-  const qs = [];
-  for (const m of ["locate", "flags", "capitals", "identify", "languages", "currencies"]) {
-    const P = sovereign.filter(MODES[m].ok);
-    let q = null;
-    for (let t = 0; t < 60 && !q; t++) {
-      const c = pick(P, rng);
-      if (used.has(c.id)) continue;
-      q = makeQ(m, c, P, rng);
-      if (q && used.has(q.id)) q = null;
-    }
-    if (q) {
+  const t = dailyTask();
+  const used = new Set(),
+    qs = [];
+  for (let k = 0; k < 300 && qs.length < DAILY_N; k++) {
+    const c = pick(t.P, t.rng);
+    if (used.has(c.id)) continue;
+    const q = makeQ(t.mode, c, t.P, t.rng);
+    if (q && !used.has(q.id)) {
       used.add(q.id);
+      used.add(c.id);
       qs.push(q);
     }
   }
-  startQuiz({ mode: "mixed", region: "World", n: 6, timer: true, daily: true, questions: qs });
+  startQuiz({
+    mode: t.mode,
+    region: t.region,
+    n: qs.length,
+    timer: true,
+    daily: true,
+    questions: qs,
+  });
 }
 function endQuiz() {
   cancelAnimationFrame(raf);
@@ -625,7 +657,8 @@ function finish() {
   SND.play("end");
   const total = Q.qs.length,
     correct = Q.correct;
-  const gained = Math.round(Q.score / 10) + 10 + (correct === total ? 25 : 0);
+  const gained =
+    Math.round(Q.score / 10) + 10 + (correct === total ? 25 : 0) + (Q.daily ? DAILY_XP : 0);
   S.xp += gained;
   const dk = todayKey();
   if (!S.days.includes(dk)) S.days.push(dk);
@@ -661,7 +694,7 @@ function finish() {
           : c.n;
   };
   QL.innerHTML = `<div class="qp" id="qp">
-    <div class="res-top"><span class="big">${pct}%</span><span class="mono" style="font-size:13px;color:var(--muted);text-align:right;line-height:1.6">${correct}/${total}  ${nf.format(Q.score)}<br><span style="color:var(--purple)">+${gained} XP${L.n > Q.lv0 ? `  LEVEL ${L.n}` : ""}</span></span></div>
+    <div class="res-top"><span class="big">${pct}%</span><span class="mono" style="font-size:13px;color:var(--muted);text-align:right;line-height:1.6">${correct}/${total}  ${nf.format(Q.score)}<br><span style="color:var(--accent)">+${gained} XP${L.n > Q.lv0 ? `  LEVEL ${L.n}` : ""}</span></span></div>
     ${missed.length ? `<div class="cap">Review</div><ul class="list" style="max-height:26vh;overflow:auto">${missed.map((x) => rowHTML(C.get(x.q.ans), MODES[x.q.mode].t).replace(`<span class="n">${esc(C.get(x.q.ans).n)}</span>`, `<span class="n">${esc(label(x))}</span>`)).join("")}</ul>` : ""}
     <div style="display:flex;gap:8px">${Q.daily ? "" : `<button class="btn ghost" id="again" style="flex:1">Again</button>`}<button class="btn" id="done" style="flex:1">Done</button></div>
   </div>`;

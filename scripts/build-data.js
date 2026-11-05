@@ -27,6 +27,7 @@ const topo10 = mapIds(
 const inMap = new Set(topo10.objects.countries.geometries.map((g) => g.id));
 const svgFlags = require("./flags.js")();
 const facts = require("./sources/facts.json");
+const FIX = { VAT: require("./sources/vatican.json") };
 
 const cities = require("world-cities-json/data/cities.json");
 const norm = (x) =>
@@ -163,6 +164,8 @@ for (let j = 0; j < 91; j++)
   }
 const geoid = { d: gb.toString("base64") };
 const data =
-  "window.GEO=" + JSON.stringify({ topo, topo110, topo10, countries: out, flags, tz, geoid }) + ";";
+  "window.GEO=" +
+  JSON.stringify({ topo, topo110, topo10, countries: out, flags, tz, geoid, fix: FIX }) +
+  ";";
 fs.writeFileSync(path.join(__dirname, "../data/geo.js"), data.replace(/<\/script/gi, "<\\/script"));
 console.log("countries", out.length, "bytes", data.length);

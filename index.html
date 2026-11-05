@@ -48,8 +48,22 @@
     </div>
 
     <div class="ctrl" id="ctrl">
-      <button class="me" id="btnMe" aria-label="Progress and settings">
-        <span class="ring" id="meRing"></span><b id="meLvl">1</b>
+      <button class="me" id="btnMe" aria-label="Level, progress and settings">
+        <span class="lv" aria-hidden="true">LVL</span><b id="meLvl">1</b
+        ><svg class="xpr" viewBox="0 0 44 44" aria-hidden="true">
+          <path
+            class="tr"
+            d="M22 1.25H30A12.75 12.75 0 0 1 42.75 14V30A12.75 12.75 0 0 1 30 42.75H14A12.75 12.75 0 0 1 1.25 30V14A12.75 12.75 0 0 1 14 1.25Z"
+            pathLength="100"
+          />
+          <path
+            class="pr"
+            id="meRing"
+            d="M22 1.25H30A12.75 12.75 0 0 1 42.75 14V30A12.75 12.75 0 0 1 30 42.75H14A12.75 12.75 0 0 1 1.25 30V14A12.75 12.75 0 0 1 14 1.25Z"
+            pathLength="100"
+            stroke-dasharray="0 100"
+          />
+        </svg>
       </button>
       <div class="stack">
         <button class="proj-btn" id="btnProj" aria-label="Switch projection">EE</button>

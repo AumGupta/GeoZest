@@ -34,6 +34,12 @@ const F110 = groupBy(
   (f) => f.id,
 );
 const G10 = groupBy(G.topo10.objects.countries.geometries, (g) => g.id);
+for (const [id, geometry] of Object.entries(G.fix || {})) {
+  const f = [{ type: "Feature", id, properties: {}, geometry }];
+  F50.set(id, f);
+  F110.set(id, f);
+  G10.delete(id);
+}
 const RECS = [...new Set([...F50.keys(), ...G10.keys()])].map((id) => ({
   id,
   f50: F50.get(id),
@@ -1055,6 +1061,10 @@ const M = {
       if (!r.p10) this.build10(r);
       const b = r.b10;
       if (b && b[1][0] - b[0][0] < this.P * 0.5) return b;
+    }
+    if (r && r.f50) {
+      const b = d3.geoPath(this.proj).bounds({ type: "FeatureCollection", features: r.f50 });
+      if (b && isFinite(b[0][0]) && b[1][0] - b[0][0] < this.P * 0.5) return b;
     }
     if (c && c.ll) {
       const q = this.proj([c.ll[1], c.ll[0]]);
