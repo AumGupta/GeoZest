@@ -711,6 +711,34 @@ function openAntarctica() {
     g.classList.add("hop");
   };
 }
+function openState(c) {
+  const par = C.get(c.st),
+    nb = c.b.map((x) => C.get(x)).filter(Boolean);
+  const top = `<div class="row-x"><span class="cap">${esc(c.t)}, ${esc(par ? par.n : "")}</span><button class="x" data-close aria-label="Close">${I.x}</button></div>`;
+  const body = `<div class="sthead">${flag(par || c)}<div><h2 class="title">${esc(c.n)}</h2><p class="muted">${esc(c.sr)}</p></div></div><div class="gap"></div>
+    <div class="rows">${[
+      ["Capital", c.cap.join(", ")],
+      ["Area", areaTxt(c.ar)],
+      [
+        c.st === "IND" ? "Borders" : "Borders",
+        nb.length
+          ? nb.map((n) => `<button class="pill" data-nb="${n.id}">${esc(n.n)}</button>`).join(" ")
+          : "None by land",
+      ],
+    ]
+      .map(([k, v]) => `<div class="kv"><span>${k}</span><b>${v}</b></div>`)
+      .join("")}</div>`;
+  sheetOpen("country", top, body, { snap: "peek", onClose: deselect });
+  deselect();
+  selected = c.id;
+  M.cls(c.id, "sel");
+  M.showLabels([c.id]);
+  $$("[data-nb]", SH.body).forEach((b) => (b.onclick = () => openCountry(b.dataset.nb)));
+  setTimeout(() => {
+    setInset();
+    M.toId(c.id, 0.7, 900);
+  }, 40);
+}
 function openCountry(id) {
   if (id === "ATA") {
     openAntarctica();
@@ -718,6 +746,10 @@ function openCountry(id) {
   }
   const c = C.get(id);
   if (!c) return;
+  if (c.st) {
+    openState(c);
+    return;
+  }
   if (!S.viewed.includes(id)) {
     S.viewed.push(id);
     save();
@@ -856,6 +888,9 @@ function glist(open, done) {
   const gl = $("#glist"),
     gp = $("#gpick");
   if (!gl) return;
+
+  for (const el of [gl, ...gl.querySelectorAll(".gtile")])
+    el.getAnimations().forEach((a) => a.cancel());
   pickOpen = open;
   gp.setAttribute("aria-expanded", open);
   $("#gbox").classList.toggle("open", open);
@@ -869,32 +904,39 @@ function glist(open, done) {
     const h = gl.offsetHeight;
     gl.animate(
       [
-        { height: "0px", marginBottom: "0px", opacity: 0.4 },
-        { height: h + "px", marginBottom: "6px", opacity: 1 },
+        { height: "0px", marginTop: "0px" },
+        { height: h + "px", marginTop: "8px" },
       ],
       { duration: 340, easing: EASE },
     );
-    [...gl.children].forEach((b, i) =>
+    gl.querySelectorAll(".gtile").forEach((b, i) =>
       b.animate(
         [
-          { opacity: 0, transform: "translateX(22px)" },
-          { opacity: 1, transform: "none" },
+          { opacity: 0, transform: "translateY(-8px) scale(.94)" },
+          { opacity: b.disabled ? 0.4 : 1, transform: "none" },
         ],
-        { duration: 280, delay: 50 + i * 30, easing: EASE, fill: "backwards" },
+        { duration: 300, delay: 40 + i * 35, easing: EASE, fill: "backwards" },
       ),
     );
     done && done();
   } else {
     const h = gl.offsetHeight;
+    const fades = [...gl.querySelectorAll(".gtile")].map((b) =>
+      b.animate([{ opacity: b.disabled ? 0.4 : 1 }, { opacity: 0 }], {
+        duration: 160,
+        fill: "forwards",
+      }),
+    );
     const a = gl.animate(
       [
-        { height: h + "px", marginBottom: "6px", opacity: 1 },
-        { height: "0px", marginBottom: "0px", opacity: 0 },
+        { height: h + "px", marginTop: "8px" },
+        { height: "0px", marginTop: "0px" },
       ],
       { duration: 300, easing: EASE },
     );
     a.onfinish = () => {
       gl.hidden = true;
+      fades.forEach((f) => f.cancel());
       done && done();
     };
   }
@@ -916,51 +958,80 @@ function openPlay() {
   const st = S.settings;
   const dd = S.daily[todayKey()];
   const keep = again ? SH.body.scrollTop : 0;
-  const sel = st.region === "World" ? [] : st.region.split(",");
+  const isl = st.region === "Islands",
+    sel = st.region === "World" || isl ? [] : st.region.split(",");
   if (!MODES[st.pick]) st.pick = "locate";
-  const regs = ["World", ...REGIONS],
-    on = (r) => (r === "World" ? !sel.length : sel.includes(r));
+  if (!SUBS[st.sub]) st.sub = Object.keys(SUBS)[0];
+  const sc = st.scope === "sub" && !!SUBS[st.sub],
+    R0 = sc ? "@" + st.sub : st.region,
+    SB = sc ? SUBS[st.sub] : null;
+  const offTxt = sc ? "Not for states" : "Not for Islands, too few land borders";
+  const gOff = (k) =>
+    k === "mixed"
+      ? !SKILLS.some((m) => poolFor(m, R0).length >= 4)
+      : sc
+        ? poolFor(k, R0).length < 4
+        : k === "neighbours" && isl;
+  if (gOff(st.pick)) st.pick = "locate";
+  const regs = ["World", ...REGIONS, "Islands"],
+    on = (r) => (r === "World" ? st.region === "World" : r === "Islands" ? isl : sel.includes(r));
   const chip = (r) =>
     `<button class="pill rchip${on(r) ? "" : " add"}" data-r="${r}" aria-pressed="${on(r)}">${on(r) ? CK : PLUS}${r}</button>`;
   const rest = regs.filter((r) => !on(r));
   const pct = (k) => {
-    const m = mastery(k, st.region);
+    const m = mastery(k, R0);
     return m.t ? Math.round((m.n / m.t) * 100) : 0;
   };
   const dt = dailyTask();
   const daily = dd
     ? ""
     : `<button class="dcard" data-daily><span class="dc-ic">${I.daily}</span><span class="dc-tx"><span class="dc-k">Daily challenge</span><b>${dt.text}</b><span class="dc-s">${dt.where}, +${DAILY_XP} bonus XP</span></span><span class="dc-go">Play</span></button>`;
+  const desc = (k) =>
+    sc ? MDESC[k].replace("country's", SB.unit + "'s").replace("country", SB.unit) : MDESC[k];
   const row = (k, tag, attrs) =>
-    `<${tag} ${attrs}><span class="gp-ic">${I[k]}</span><span class="gp-tx"><b>${MODES[k].t}</b><span>${MDESC[k]}</span></span><span class="gp-p">${pct(k)}%</span>`;
+    `<${tag} ${attrs}><span class="gp-ic">${I[k]}</span><span class="gp-tx"><b>${MODES[k].t}</b><span>${desc(k)}</span></span><span class="gp-p">${pct(k)}%</span>`;
   const top = `<div class="row-x"><h2 class="title">Play</h2><button class="x" data-close aria-label="Close">${I.x}</button></div>`;
+
+  const others = Object.keys(MODES).filter((k) => k !== st.pick && !gOff(k));
+  const tile = (k, i) => {
+    const off = gOff(k),
+      wide = others.length % 3 === 1 && i === others.length - 1;
+    return `<button class="gtile${wide ? " wide" : ""}" role="option" ${off ? `disabled aria-disabled="true" title="${offTxt}"` : `data-pick="${k}"`} aria-selected="false">${cardArt(k)}<span class="gt-ic">${I[k]}</span><span class="gt-tx"><b>${MODES[k].t}</b>${wide ? `<span>${off ? offTxt : desc(k)}</span>` : ""}</span><span class="gt-p">${off ? "n/a" : pct(k) + "%"}</span></button>`;
+  };
+  const nUnits = SB ? SB.cs.filter((c) => inRegion(c, R0)).length : 0;
+  const unitTxt = SB
+    ? SB.extra && st.subx !== false
+      ? (SB.units.includes(" and ")
+          ? SB.units.replace(" and ", ", ") + " and "
+          : SB.units + " and ") + SB.extra.txt
+      : SB.units
+    : "";
   const body = `${daily ? daily + '<div class="gap"></div>' : ""}
+    <div class="scope" role="radiogroup" aria-label="Quiz on" style="--i:${sc ? 1 : 0}"><button role="radio" data-sc="world" aria-checked="${!sc}">${IC.globe}Countries</button><button role="radio" data-sc="sub" aria-checked="${sc}"><svg class="i" viewBox="0 0 24 24"><path d="M4 5h7v6H4zM13 5h7v9h-7zM4 13h7v6H4zM13 16h7v3h-7z"/></svg>States</button><span class="sc-k" aria-hidden="true"></span></div>
+    <div class="gap"></div>
     <div class="cap gcap">Game type</div>
     <div class="gbox${pickOpen ? " open" : ""}" id="gbox">${row(st.pick, "button", `class="gpick" id="gpick" aria-expanded="${pickOpen}" aria-controls="glist"`)}${cardArt(st.pick)}<span class="gp-ch">${CHEV}</span></button>
-    <div class="glist" id="glist" role="listbox" aria-label="Other game types" ${pickOpen ? "" : "hidden"}>${Object.keys(
-      MODES,
-    )
-      .filter((k) => k !== st.pick)
-      .map(
-        (k) =>
-          row(k, "button", `class="gopt" role="option" data-pick="${k}" aria-selected="false"`) +
-          "</button>",
-      )
-      .join("")}</div></div>
+    <div class="glist" id="glist" role="listbox" aria-label="Other game types" ${pickOpen ? "" : "hidden"}><div class="ggrid">${others.map(tile).join("")}</div></div></div>
     <div class="gap"></div>
     <div class="popts">
-      <span class="plabel">Region</span><div class="prow wrap" role="group" aria-label="Selected region">${regs.filter(on).map(chip).join("")}</div>
+      ${
+        sc
+          ? `<span class="plabel">Country</span><div class="prow"><button class="cpick" data-cpick aria-haspopup="dialog" aria-label="Country: ${esc(SB.name)}, change">${flag(C.get(st.sub) || { a2: "" })}<b>${esc(SB.name)}</b><span class="gp-ch">${CHEV}</span></button></div>
+      <div class="pnote">${esc(subCount(SB, st.subx !== false))}</div>
+      ${SB.extra ? `<span class="plabel">Include</span><div class="prow" role="group" aria-label="Include"><button class="pill rchip${st.subx !== false ? "" : " off"}" data-subx aria-pressed="${st.subx !== false}">${st.subx !== false ? CK : PLUS}${esc(SB.extra.label)}</button></div>` : ""}`
+          : `<span class="plabel">Region</span><div class="prow wrap" role="group" aria-label="Selected region">${regs.filter(on).map(chip).join("")}</div>
       ${rest.length ? `<div class="prow wrap ravail" role="group" aria-label="Add a region">${rest.map(chip).join("")}</div>` : ""}
-      <div class="pnote">${G.countries.filter((c) => inPlay(c) && (!sel.length || sel.includes(c.r))).length} countries${sel.length ? ` in ${sel.length === 1 ? sel[0] : sel.slice(0, -1).join(", ") + " and " + sel[sel.length - 1]}` : ", whole world"}</div>
+      <div class="pnote">${isl ? `${G.countries.filter((c) => inRegion(c, "Islands")).length} islands worldwide${st.terr ? ", territories included" : ""}` : `${G.countries.filter((c) => inRegion(c, st.region)).length} countries${sel.length ? ` in ${sel.length === 1 ? sel[0] : sel.slice(0, -1).join(", ") + " and " + sel[sel.length - 1]}` : ", whole world"}`}</div>
       <span class="plabel">Include</span><div class="prow" role="group" aria-label="Include">${[
         ["isl", "Small islands", st.isl !== false],
         ["terr", "Territories", !!st.terr],
       ]
         .map(
           ([k, t, v]) =>
-            `<button class="pill rchip${v ? "" : " off"}" data-inc="${k}" aria-pressed="${v}">${v ? CK : PLUS}${t}</button>`,
+            `${k === "isl" && isl ? `<button class="pill rchip lock" disabled aria-disabled="true" aria-pressed="true" title="Always on for Islands">${CK}${t}</button>` : `<button class="pill rchip${v ? "" : " off"}" data-inc="${k}" aria-pressed="${v}">${v ? CK : PLUS}${t}</button>`}`,
         )
-        .join("")}</div>
+        .join("")}</div>`
+      }
       <span class="plabel">Questions</span><div class="prow"><div class="seg" role="radiogroup" aria-label="Number of questions" style="--i:${Math.max(0, [10, 20, 30].indexOf(st.len))}">${[10, 20, 30].map((n) => `<button role="radio" data-l="${n}" aria-checked="${n === st.len}" aria-label="${n} questions">${n}</button>`).join("")}<span class="seg-k" aria-hidden="true"></span></div>
       <span class="tgl"><span class="plabel">Timer</span><button class="sw tsw" role="switch" data-t aria-checked="${!!st.timer}" aria-label="Timer"><span class="knob"><span class="on">${I.timer}</span><span class="off">${I.timerOff}</span></span></button></span></div>
     </div>`;
@@ -974,6 +1045,7 @@ function openPlay() {
         document.body.classList.remove("psheet");
         if (!Q) {
           M.focus = null;
+          M.sub = null;
           M.sched();
         }
         if (playMoved && !Q && !SH.kind) {
@@ -983,9 +1055,23 @@ function openPlay() {
       }, 40),
   });
   SH.body.scrollTop = keep;
-  M.focus = sel.length ? new Set(sel) : null;
+  M.sub = sc ? st.sub : null;
+  M.focus = sc ? null : isl ? new Set(["Islands"]) : sel.length ? new Set(sel) : null;
   M.sched();
   document.body.classList.add("psheet");
+  if (!again && sc) {
+    playMoved = true;
+    setTimeout(
+      () =>
+        ensureSub(st.sub).then(() => {
+          if (SH.kind === "play") {
+            setInset();
+            M.toRegion(R0);
+          }
+        }),
+      120,
+    );
+  }
   if (prev && !reduced()) {
     [...SH.body.querySelectorAll(FL)].forEach((b, i) => {
       const a = prev.get(fk(b, i));
@@ -1003,11 +1089,51 @@ function openPlay() {
   }
   SH.foot.onclick = (e) => {
     if (e.target.closest("#goPlay"))
-      startQuiz({ mode: st.pick, region: st.region, n: st.len, timer: st.timer });
+      startQuiz({ mode: st.pick, region: R0, n: st.len, timer: st.timer });
   };
   SH.body.onclick = (e) => {
     if (e.target.closest("[data-daily]")) {
       startDaily();
+      return;
+    }
+    const scb = e.target.closest("[data-sc]");
+    if (scb) {
+      const v = scb.dataset.sc;
+      if (v === st.scope || (v === "world" && !sc)) return;
+      st.scope = v;
+      save();
+      const g = scb.parentNode;
+      g.style.setProperty("--i", v === "sub" ? 1 : 0);
+      g.querySelectorAll("[data-sc]").forEach((b) => b.setAttribute("aria-checked", b === scb));
+      const R1 = v === "sub" ? "@" + st.sub : st.region;
+      if (v === "sub" && poolFor(st.pick === "mixed" ? "locate" : st.pick, R1).length < 4) {
+        st.pick = "locate";
+        toast("Switched to Locate, that game type has no state version");
+      }
+      playMoved = true;
+      setTimeout(() => {
+        if (SH.kind === "play") openPlay();
+        (v === "sub" ? ensureSub(st.sub) : Promise.resolve()).then(() => M.toRegion(R1));
+      }, 200);
+      return;
+    }
+    if (e.target.closest("[data-cpick]")) {
+      countryPicker(st.sub, (k) => {
+        if (k === st.sub) return;
+        st.sub = k;
+        save();
+        playMoved = true;
+        openPlay();
+        ensureSub(k).then(() => {
+          if (SH.kind === "play") M.toRegion("@" + k);
+        });
+      });
+      return;
+    }
+    if (e.target.closest("[data-subx]")) {
+      st.subx = st.subx === false;
+      save();
+      openPlay();
       return;
     }
     if (e.target.closest("#gpick")) {
@@ -1028,7 +1154,13 @@ function openPlay() {
     if (r) {
       const v = r.dataset.r;
       if (v === "World") st.region = "World";
-      else {
+      else if (v === "Islands") {
+        st.region = isl ? "World" : "Islands";
+        if (!isl && st.pick === "neighbours") {
+          st.pick = "locate";
+          toast("Islands have few land borders, switched to Locate");
+        }
+      } else {
         const s2 = new Set(sel);
         s2.has(v) ? s2.delete(v) : s2.add(v);
         st.region =
@@ -1182,7 +1314,7 @@ const medal = (b, t, cls = "") => {
 function openMe() {
   const L = lvlInfo(S.xp);
   const acc = S.tot.a ? Math.round((S.tot.c / S.tot.a) * 100) : 0;
-  const R = ["World", ...REGIONS];
+  const R = ["World", ...REGIONS, "Islands"];
   const top = `<div class="row-x"><div><h2 class="title">Level ${L.n}</h2><div class="cap" style="margin-top:3px">${L.into} / ${L.need} XP</div></div><span class="hbtns end"><button class="x" id="toTheme" aria-label="${S.settings.night ? "Switch to light theme" : "Switch to dark theme"}">${S.settings.night ? IC.sun : IC.moon}</button><button class="x" id="toSet" aria-label="Settings">${IC.gear}</button><button class="x" data-close aria-label="Close">${I.x}</button></span></div><div class="xpbar" style="margin-top:12px"><i style="width:${L.pct}%"></i></div>`;
   const stat = (ic, v, t) => `<div><span class="si">${ic}</span><b>${v}</b><span>${t}</span></div>`;
   const body = `<div class="grid-stats">

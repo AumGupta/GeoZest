@@ -11,7 +11,9 @@
   },
   "scripts": {
     "start": "npx --yes serve .",
-    "build:data": "node scripts/build-data.js"
+    "build:data": "node scripts/build-data.js",
+    "build:states": "node scripts/build-states.js",
+    "build:pov": "node scripts/build-pov.js"
   },
   "devDependencies": {
     "countries-and-timezones": "^3.7.2",
@@ -21,6 +23,11 @@
     "svgo": "^3.3.2",
     "world-atlas": "^2.0.2",
     "world-cities-json": "^1.0.1",
-    "world-countries": "^5.1.0"
+    "world-countries": "^5.1.0",
+    "d3-geo": "^3.1.1",
+    "polygon-clipping": "^0.15.7",
+    "topojson-client": "^3.1.0",
+    "topojson-server": "^3.0.1",
+    "topojson-simplify": "^3.0.3"
   }
 }

@@ -13,7 +13,7 @@ const OUT85 = d3
   ])
   .outline();
 
-for (const r of RECS) {
+function geoMeta(r) {
   const geo = r.f50
     ? { type: "FeatureCollection", features: r.f50 }
     : r.g10
@@ -22,7 +22,7 @@ for (const r of RECS) {
           geometries: r.g10.map((g) => topojson.feature(G.topo10, g).geometry),
         })
       : null;
-  if (!geo) continue;
+  if (!geo) return;
   r.gc = d3.geoCentroid(geo);
   const b = d3.geoBounds(geo);
   let rad = 0;
@@ -34,6 +34,46 @@ for (const r of RECS) {
   ])
     rad = Math.max(rad, d3.geoDistance(r.gc, q));
   r.gr = isFinite(rad) ? Math.max(0.002, rad) : Math.PI;
+}
+for (const r of RECS) geoMeta(r);
+
+const subLoads = {};
+function ensureSub(a3) {
+  const S2 = SUBS[a3];
+  if (!S2) return Promise.resolve(false);
+  if (S2.ready) return Promise.resolve(true);
+  return (
+    subLoads[a3] ||
+    (subLoads[a3] = fetch("data/states/" + a3 + ".json")
+      .then((r) => {
+        if (!r.ok) throw new Error("states");
+        return r.json();
+      })
+      .then((topo) => {
+        const fc = topojson.feature(topo, topo.objects.s);
+        for (const f of fc.features) {
+          const g = { type: "Feature", id: f.id, properties: {}, geometry: windOK(f.geometry) };
+          if (!(d3.geoArea(g) > 0)) continue;
+          F50.set(f.id, [g]);
+          F110.set(f.id, [g]);
+          const r = { id: f.id, f50: [g], f110: [g], c: C.get(f.id), sub: a3 };
+          geoMeta(r);
+          RECS.push(r);
+          RBY.set(f.id, r);
+        }
+        RECS.sort((a, b) => ((b.c && b.c.ar) || 1e9) - ((a.c && a.c.ar) || 1e9));
+        RHIT.length = 0;
+        RHIT.push(...RECS.slice().reverse());
+        S2.ready = true;
+        M.build(M.lod || "50");
+        return true;
+      })
+      .catch(() => {
+        delete subLoads[a3];
+        toast("Could not load " + S2.name + ", check your connection");
+        return false;
+      }))
+  );
 }
 function gGeom(r, lod) {
   if (lod === "10" && r.g10) {
@@ -547,6 +587,7 @@ Object.assign(M, {
     if (best) return best;
     for (const r of RHIT) {
       if (!(r.c || r.id === "ATA") || !r.gc) continue;
+      if (r.sub ? r.sub !== this.sub : r.id === this.sub) continue;
       if (d3.geoDistance(ll, r.gc) > r.gr + 0.01) continue;
       const g = gGeom(r, "50");
       if (g && d3.geoContains(g, ll)) return r.id;
@@ -690,6 +731,7 @@ Object.assign(M, {
     c.lineJoin = "round";
     for (const r of LA > 0.01 ? RECS : []) {
       if (!r.gc) continue;
+      if (r.sub && r.sub !== this.sub) continue;
       if (cull && d3.geoDistance(r.gc, cull[0]) - r.gr > cull[1]) continue;
       if (r.id === "ATA" && g < 0.5 && this.morphTo === "merc") continue;
       if (cull && r.gr * R < 0.4) continue;

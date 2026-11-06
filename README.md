@@ -24,7 +24,8 @@ GeoZest is a minimal, map-first geography quiz game. Explore every country on a 
 - Four map views: Globe, Geoid (EGM96 heights), Equal Earth and Mercator, with smooth morphs between them.
 - Country cards with population, area, languages, currency, borders and a fun fact.
 - Native pronunciations of country names, capitals and languages, with IPA.
-- Seven quiz modes: Locate, Identify, Capitals, Flags, Languages, Currencies and Neighbors, for the whole world or any mix of continents, with or without small islands and territories.
+- Seven quiz modes: Locate, Identify, Capitals, Flags, Languages, Currencies and Neighbors, for the whole world, any mix of continents, or every island in the world, with or without small islands and territories.
+- State quizzes for India, the United States, Russia, China, Brazil, Canada, Australia and Mexico: Locate, Identify, Capitals and Neighbors, with capitals and regional zones for every state, province and territory. Each country loads only when you pick it.
 - No giveaway questions. If an answer contains the country's name, the wrong options are made just as convincing.
 - A daily challenge, XP levels, mastery by region and 15 achievements with bronze, silver and gold tiers.
 - Light and dark themes, km or miles, a blank-map mode without labels and a reduce-motion option.
@@ -105,6 +106,7 @@ js/main.js          wiring and start-up
 js/pwa.js           registers the offline cache
 data/geo.js         countries, borders, flags, time zones and geoid grid (generated)
 data/say/           pronunciation clips, one file per country
+data/states/        state and province shapes, one file per country (loaded on demand)
 fonts/              bundled web fonts (SIL OFL)
 icons/              app icons
 sw.js               offline cache
@@ -146,7 +148,8 @@ npm run build:data
 
 ## Data & Credits
 
-- Borders: [Natural Earth](https://www.naturalearthdata.com/) via [world-atlas](https://github.com/topojson/world-atlas).
+- Borders: [Natural Earth](https://www.naturalearthdata.com/) via [world-atlas](https://github.com/topojson/world-atlas). India's boundaries in Jammu and Kashmir and Ladakh follow India's official map, taken from Natural Earth's India point-of-view edition (`npm run build:pov`); all other borders are Natural Earth's defaults.
+- States and provinces: [Natural Earth](https://www.naturalearthdata.com/) admin-1 (names, capitals and zones in `scripts/states-config.js`), with Jammu and Kashmir and Ladakh drawn as on India's official map. Rebuilt with `npm run build:states <admin-1 geojson> <India point-of-view geojson>`.
 - Vatican City outline: [geoBoundaries](https://www.geoboundaries.org/) (gbOpen), since it is too small to survive the simplified Natural Earth data.
 - Country details: [world-countries](https://github.com/mledoze/countries).
 - Capitals: [SimpleMaps World Cities](https://simplemaps.com/data/world-cities) (CC BY 4.0).

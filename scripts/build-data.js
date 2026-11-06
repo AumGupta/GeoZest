@@ -17,6 +17,70 @@ function mapIds(t) {
   }
   return t;
 }
+
+const pc = require("polygon-clipping");
+const d3geo = require("d3-geo");
+const tjc = require("topojson-client");
+const { topology: toTopo } = require("topojson-server");
+const POV = require("./sources/pov-india.json");
+
+const POV_BORDERS = { IND: ["AFG"], AFG: ["IND"] };
+function applyPOV(t) {
+  const q = Math.round(360 / t.transform.scale[0]) + 1;
+  const fc = tjc.feature(t, t.objects.countries);
+  const polys = (g) => (g.type === "Polygon" ? [g.coordinates] : g.coordinates);
+  const km2 = (p) => {
+    const a = d3geo.geoArea({ type: "Polygon", coordinates: p });
+    return Math.min(a, 4 * Math.PI - a) * 6371.0088 ** 2;
+  };
+  const [x0, y0, x1, y1] = POV.box,
+    e = 0.02;
+
+  const inner = [
+    [
+      [x0 + e, y0 + e],
+      [x1 - e, y0 + e],
+      [x1 - e, y1 - e],
+      [x0 + e, y1 - e],
+      [x0 + e, y0 + e],
+    ],
+  ];
+  const hits = (g) => {
+    const b = d3geo.geoBounds(g);
+    return b[1][0] > x0 && b[0][0] < x1 && b[1][1] > y0 && b[0][1] < y1;
+  };
+
+  const wind = (ps) =>
+    ps.map((p) =>
+      p.map((ring, i) => {
+        const cw = d3geo.geoArea({ type: "Polygon", coordinates: [ring] }) < 2 * Math.PI;
+        return (i === 0) === cw ? ring : ring.slice().reverse();
+      }),
+    );
+
+  const plane = (ps) =>
+    ps.map((p) =>
+      p.map((ring, i) => {
+        let s = 0;
+        for (let k = 0; k < ring.length - 1; k++)
+          s += (ring[k + 1][0] - ring[k][0]) * (ring[k + 1][1] + ring[k][1]);
+        const ccw = s < 0;
+        return (i === 0) === ccw ? ring : ring.slice().reverse();
+      }),
+    );
+  fc.features = fc.features.filter((f) => f.id !== "X_SiachenGlacier");
+  for (const f of fc.features) {
+    if (!f.geometry || !hits(f.geometry)) continue;
+    let out = pc.difference(plane(polys(f.geometry)), inner);
+    if (POV.parts[f.id]) out = pc.union(out, plane(POV.parts[f.id].coordinates));
+    out = out.filter((p) => km2(p) > 1);
+    if (f.id === "IND") out = out.map((p) => [p[0]]);
+    f.geometry = { type: "MultiPolygon", coordinates: wind(out) };
+  }
+  const nt = toTopo({ countries: fc }, q);
+  for (const g of nt.objects.countries.geometries) g.properties = {};
+  return nt;
+}
 mapIds(topo);
 const topo110 = mapIds(
   JSON.parse(fs.readFileSync(require.resolve("world-atlas/countries-110m.json"), "utf8")),
@@ -24,6 +88,7 @@ const topo110 = mapIds(
 const topo10 = mapIds(
   JSON.parse(fs.readFileSync(require.resolve("world-atlas/countries-10m.json"), "utf8")),
 );
+const [topoP, topo110P, topo10P] = [topo, topo110, topo10].map(applyPOV);
 const inMap = new Set(topo10.objects.countries.geometries.map((g) => g.id));
 const svgFlags = require("./flags.js")();
 const facts = require("./sources/facts.json");
@@ -103,7 +168,7 @@ for (const c of countries) {
     l: Object.values(c.languages || {}),
     cur: Object.entries(c.currencies || {}).map(([k, v]) => [k, v.name, v.symbol || ""]),
     ar: c.area,
-    b: c.borders || [],
+    b: [...(c.borders || []), ...(POV_BORDERS[c.cca3] || [])],
     ll: c.latlng,
     lk: !!c.landlocked,
     dm: c.demonyms?.eng?.m || "",
@@ -163,9 +228,32 @@ for (let j = 0; j < 91; j++)
     gb.writeInt8(Math.max(-127, Math.min(127, v)), j * 180 + i);
   }
 const geoid = { d: gb.toString("base64") };
+
+function subData() {
+  const all = require("./sources/states.json");
+  const dir = path.join(__dirname, "../data/states");
+  if (!dir) return all;
+  fs.mkdirSync(dir, { recursive: true });
+  return Object.fromEntries(
+    Object.entries(all).map(([k, v]) => {
+      fs.writeFileSync(path.join(dir, k + ".json"), JSON.stringify(v.topo));
+      return [k, { ...v, topo: null }];
+    }),
+  );
+}
 const data =
   "window.GEO=" +
-  JSON.stringify({ topo, topo110, topo10, countries: out, flags, tz, geoid, fix: FIX }) +
+  JSON.stringify({
+    topo: topoP,
+    topo110: topo110P,
+    topo10: topo10P,
+    countries: out,
+    flags,
+    tz,
+    geoid,
+    fix: FIX,
+    sub: subData(),
+  }) +
   ";";
 fs.writeFileSync(path.join(__dirname, "../data/geo.js"), data.replace(/<\/script/gi, "<\\/script"));
 console.log("countries", out.length, "bytes", data.length);

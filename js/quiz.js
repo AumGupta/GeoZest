@@ -12,7 +12,12 @@ function weightedOrder(P, mode, rng) {
 function distract(c, P, rng, ok, label) {
   const seen = new Set([label(c)]);
   const out = [];
-  for (const t of [P.filter((x) => x.sr === c.sr), P.filter((x) => x.r === c.r), P, sovereign]) {
+  for (const t of [
+    P.filter((x) => x.sr === c.sr),
+    P.filter((x) => x.r === c.r),
+    P,
+    c.st ? [] : sovereign,
+  ]) {
     for (const x of shuffle(t, rng)) {
       if (out.length >= 3) break;
       if (x.id === c.id || !ok(x)) continue;
@@ -96,7 +101,7 @@ function makeQ(mode, c, P, rng) {
     return q;
   }
   if (mode === "identify") {
-    q.title = "Which country is this?";
+    q.title = c.st ? SUBS[c.st].q : "Which country is this?";
     q.hint = "target";
     q.opts = opts(
       c,
@@ -218,9 +223,11 @@ function makeQ(mode, c, P, rng) {
 function buildQuestions(mode, region, n, rng) {
   const qs = [];
   if (mode === "mixed") {
-    const used = new Set();
+    const used = new Set(),
+      ms = SKILLS.filter((m) => poolFor(m, region).length >= 4);
+    if (!ms.length) return qs;
     for (let i = 0; i < n; i++) {
-      const m = SKILLS[i % SKILLS.length];
+      const m = ms[i % ms.length];
       const P = poolFor(m, region);
       let q = null;
       for (const c of weightedOrder(P, m, rng)) {
@@ -255,15 +262,32 @@ let Q = null,
   raf = 0;
 const QL = $("#quizLayer");
 function quizDots() {
-  return new Set(G.countries.filter(inPlay).map((c) => c.id));
+  const sb = Q && subOf(Q.region);
+  return new Set(sb ? SUBS[sb].ids : G.countries.filter(inPlay).map((c) => c.id));
 }
-function startQuiz({ mode, region, n, timer, daily = false, questions }) {
+function startQuiz(o) {
+  const sb = subOf(o.region);
+  if (sb && SUBS[sb] && !SUBS[sb].ready) {
+    ensureSub(sb).then((ok) => ok && startQuiz(o));
+    return;
+  }
+  return startQuiz0(o);
+}
+function startQuiz0({ mode, region, n, timer, daily = false, questions }) {
+  const qs = questions || buildQuestions(mode, region, n, Math.random);
+  if (!qs.length) {
+    toast("Too few places in this mix, add a region");
+    return;
+  }
   sheetClose();
   deselect();
   coverage(false);
   cancelAnimationFrame(raf);
-  const qs = questions || buildQuestions(mode, region, n, Math.random);
-  M.focus = region && region !== "World" ? new Set(region.split(",")) : null;
+  M.sub = subOf(region);
+  M.focus =
+    region && region !== "World" && !M.sub
+      ? new Set(region === "Islands" ? ["Islands"] : region.split(","))
+      : null;
   Q = {
     mode,
     region,
@@ -346,6 +370,7 @@ function endQuiz() {
   Q = null;
   QL.innerHTML = "";
   M.focus = null;
+  M.sub = null;
   document.body.classList.remove("results");
   document.body.classList.remove("quiz");
   M.forceCountry = false;
@@ -838,6 +863,57 @@ function badgeInfo(b) {
   o.onclick = (e) => {
     if (e.target === o || e.target.closest("[data-ok]")) close();
   };
+}
+
+function countryPicker(cur, pick) {
+  const L = Object.entries(SUBS).sort((a, b) => a[1].name.localeCompare(b[1].name));
+  const o = document.createElement("div");
+  o.className = "lvup cpov";
+  o.setAttribute("role", "dialog");
+  o.setAttribute("aria-label", "Choose a country");
+  const row = ([k, x]) =>
+    `<button class="cprow" role="radio" aria-checked="${k === cur}" data-k="${k}">${flag(C.get(k) || { a2: "" })}<span><b>${esc(x.name)}</b><small>${esc(subCount(x))}</small></span>${k === cur ? `<i class="cpck">${CK}</i>` : ""}</button>`;
+  o.innerHTML = `<div class="lvcard"><div class="row-x"><b class="cpt">Choose a country</b><button class="x" data-ok aria-label="Close">${I.x}</button></div>
+    ${L.length > 10 ? `<label class="searchbox cps">${I.search}<input type="search" placeholder="Search countries" aria-label="Search countries"></label>` : ""}
+    <div class="cplist" role="radiogroup">${L.map(row).join("")}</div><p class="cpnote">More countries are being added soon.</p></div>`;
+  document.body.appendChild(o);
+  requestAnimationFrame(() => o.classList.add("on"));
+  const close = () => {
+    o.classList.remove("on");
+    setTimeout(() => o.remove(), 300);
+    document.removeEventListener("keydown", kd, true);
+  };
+  const kd = (e) => {
+    if (e.key === "Escape") {
+      e.stopPropagation();
+      close();
+    }
+  };
+  document.addEventListener("keydown", kd, true);
+  const q = o.querySelector(".cps input");
+  if (q)
+    q.oninput = () => {
+      const t = q.value.trim().toLowerCase();
+      o.querySelectorAll(".cprow").forEach(
+        (b) => (b.hidden = !!t && !SUBS[b.dataset.k].name.toLowerCase().includes(t)),
+      );
+    };
+  o.onclick = (e) => {
+    const b = e.target.closest(".cprow");
+    if (b) {
+      close();
+      pick(b.dataset.k);
+      return;
+    }
+    if (e.target === o || e.target.closest("[data-ok]")) close();
+  };
+  setTimeout(
+    () =>
+      (o.querySelector('.cprow[aria-checked="true"]') || o.querySelector(".cprow")).focus({
+        preventScroll: true,
+      }),
+    60,
+  );
 }
 async function popBadges(got) {
   for (const [b, t] of got) await badgePop(b, t);

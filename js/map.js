@@ -38,6 +38,26 @@ const F110 = groupBy(
   (f) => f.id,
 );
 const G10 = groupBy(G.topo10.objects.countries.geometries, (g) => g.id);
+
+const windOK = (g) => {
+  const fix = (p) =>
+    d3.geoArea({ type: "Polygon", coordinates: p }) > 2 * Math.PI
+      ? p.map((r) => r.slice().reverse())
+      : p;
+  return g.type === "Polygon"
+    ? { type: "Polygon", coordinates: fix(g.coordinates) }
+    : { type: "MultiPolygon", coordinates: g.coordinates.map(fix) };
+};
+for (const S2 of Object.values(SUBS)) {
+  if (!S2.topo) continue;
+  const fc = topojson.feature(S2.topo, S2.topo.objects.s);
+  for (const f of fc.features) {
+    const g = { type: "Feature", id: f.id, properties: {}, geometry: windOK(f.geometry) };
+    if (!(d3.geoArea(g) > 0)) continue;
+    F50.set(f.id, [g]);
+    F110.set(f.id, [g]);
+  }
+}
 for (const [id, geometry] of Object.entries(G.fix || {})) {
   const f = [{ type: "Feature", id, properties: {}, geometry }];
   F50.set(id, f);
@@ -53,13 +73,16 @@ const RECS = [...new Set([...F50.keys(), ...G10.keys()])].map((id) => ({
 }));
 
 RECS.sort((a, b) => ((b.c && b.c.ar) || 1e9) - ((a.c && a.c.ar) || 1e9));
+for (const r of RECS) r.sub = (r.c && r.c.st) || null;
 const RHIT = RECS.slice().reverse();
 const RBY = new Map(RECS.map((r) => [r.id, r]));
 const isDot = (id) => {
   const c = C.get(id);
   return !!c && (c.ar < SMALL || !F50.has(id));
 };
-const DOTS = G.countries.filter((c) => isDot(c.id) && c.ll);
+const DOTS = [...G.countries, ...Object.values(SUBS).flatMap((x) => x.cs)].filter(
+  (c) => isDot(c.id) && c.ll,
+);
 const OUTLINED = new Set(["sel", "good", "bad", "target"]);
 
 const M = {
@@ -581,9 +604,15 @@ const M = {
     const p = this.pal,
       st = this.state.get(id);
     if (st) return p[st] || p.ink;
-    if (this.dim || (this.focus && !this.focus.has(regionOf(id)))) return p.land;
+    if (this.sub && !(RBY.get(id) || {}).sub) return p.land;
+    if (
+      this.dim ||
+      (this.focus && !(this.focus.has("Islands") ? ISLES.has(id) : this.focus.has(regionOf(id))))
+    )
+      return p.land;
     const ci = COLOR.get(id) ?? 0,
       reg = regionOf(id);
+    if (this.sub && (RBY.get(id) || {}).sub) return p.p[ci];
     if (this.mix >= 1) return p.p[ci];
     if (this.mix <= 0) return p.reg[reg];
     const key = id;
@@ -648,6 +677,7 @@ const M = {
       for (const r of RECS) {
         const b = r.b;
         if (!b) continue;
+        if (r.sub && r.sub !== this.sub) continue;
         if (
           b[1][0] * k + ox < 0 ||
           b[0][0] * k + ox > W ||
@@ -746,6 +776,10 @@ const M = {
     return this.mode !== "globe" && this.t > 0.5;
   },
   dotVisible(id) {
+    {
+      const c = C.get(id);
+      if (c && c.st && c.st !== this.sub) return false;
+    }
     if (this.dotSet && !this.dotSet.has(id)) return false;
     if (!this.dotSet && !this.countryMode()) return !!this.state.get(id);
     const r = RBY.get(id);
@@ -837,7 +871,15 @@ const M = {
       return c.measureText(s).width;
     };
 
-    const forced = this.force ? this.ld.filter((d) => this.force.has(d.id)) : [];
+    const subHide = (d) => {
+      const c = C.get(d.id);
+      return c && c.st ? c.st !== this.sub : !!this.sub;
+    };
+    const forced = this.force
+      ? this.ld.filter(
+          (d) => this.force.has(d.id) && !(C.get(d.id)?.st && C.get(d.id).st !== this.sub),
+        )
+      : [];
 
     const many = forced.length > 1;
     if (many)
@@ -929,6 +971,7 @@ const M = {
     if (!(this.labels && this.mix >= 0.5)) return;
     for (const d of this.ld) {
       if (this.force && this.force.has(d.id)) continue;
+      if (subHide(d)) continue;
       let fs,
         wt = 600;
       if (d.pt) {
@@ -988,6 +1031,7 @@ const M = {
     const hi = this.hiRes();
     for (const r of RHIT) {
       if (!(r.c || r.id === "ATA") || !r.b) continue;
+      if (r.sub ? r.sub !== this.sub : r.id === this.sub) continue;
       const b = r.b10 || r.b;
       if (bx < b[0][0] || bx > b[1][0] || by < b[0][1] || by > b[1][1]) continue;
       const path = (hi && r.p10) || r.p || r.p10;
@@ -1183,6 +1227,11 @@ const M = {
     this.toBounds(this.union(ids.map((i) => this.boundsOf(i))), Infinity, fill, dur);
   },
   toRegion(r, dur = 800) {
+    if (subOf(r)) {
+      const S2 = SUBS[subOf(r)];
+      if (S2) this.toIds(S2.view, 0.94, dur);
+      return;
+    }
     const RB = regionBox(r);
     if (!RB) {
       this.world(dur);

@@ -9,6 +9,50 @@ const esc = (s) =>
 const G = window.GEO;
 const C = new Map(G.countries.map((c) => [c.id, c]));
 const BY2 = new Map(G.countries.map((c) => [c.a2, c]));
+
+const SUBS = {};
+for (const [a3, s] of Object.entries(G.sub || {})) {
+  const par = G.countries.find((c) => c.id === a3);
+  const cs = [];
+  const U = s.unit[0].toUpperCase() + s.unit.slice(1);
+  for (const m of s.meta) {
+    const c = {
+      ...m,
+      st: a3,
+      r: par ? par.r : "World",
+      ind: m.main,
+      t: m.main ? U : s.extra ? s.extra.one : U,
+      a: m.ar,
+      a2: "",
+      o: m.n,
+      dm: "",
+      l: [],
+      cur: [],
+      cl: null,
+    };
+    C.set(m.id, c);
+    cs.push(c);
+  }
+  SUBS[a3] = {
+    name: s.name,
+    unit: s.unit,
+    units: s.units,
+    extra: s.extra,
+    cs,
+    ids: cs.map((c) => c.id),
+    view: s.view || cs.map((c) => c.id),
+    topo: s.topo,
+    q: s.q,
+    ready: !!s.topo,
+  };
+}
+const subOf = (region) => (String(region || "")[0] === "@" ? region.slice(1) : null);
+
+const subCount = (x, withExtra = true) => {
+  const m = x.cs.filter((c) => c.ind).length,
+    e = x.cs.length - m;
+  return `${m} ${x.units}${x.extra && withExtra && e ? ` + ${e > 1 ? e + " " : ""}${x.extra.txt.replace(/^the /, "")}` : ""}`;
+};
 const REGIONS = ["Africa", "Americas", "Asia", "Europe", "Oceania"];
 const RSHORT = {
   World: "W",
@@ -17,6 +61,7 @@ const RSHORT = {
   Asia: "AS",
   Europe: "EU",
   Oceania: "OC",
+  Islands: "IS",
 };
 const REGION_BOX = {
   Africa: [
@@ -149,6 +194,9 @@ const defaults = () => ({
     region: "World",
     len: 10,
     sound: true,
+    scope: "world",
+    sub: "IND",
+    subx: true,
   },
 });
 function load() {
@@ -291,7 +339,7 @@ const shuffle = (a, r = Math.random) => {
 };
 const pick = (a, r = Math.random) => a[Math.floor(r() * a.length)];
 const flag = (c, st = "") =>
-  `<span class="flag" style="${st}" aria-hidden="true">${G.flags[c.a2] || ""}</span>`;
+  `<span class="flag" style="${st}" aria-hidden="true">${G.flags[c.a2 || (c.st && C.get(c.st)?.a2)] || ""}</span>`;
 function fmtLL(ll) {
   const [la, lo] = ll;
   return `${Math.abs(la).toFixed(1)}° ${la >= 0 ? "N" : "S"}  ${Math.abs(lo).toFixed(1)}° ${lo >= 0 ? "E" : "W"}`;
@@ -443,6 +491,13 @@ const COLOR = new Map();
     }
   }
   for (const c of G.countries) if (!COLOR.has(c.id)) COLOR.set(c.id, hash(c.id) % 6);
+  for (const S2 of Object.values(SUBS))
+    for (const c of S2.cs.slice().sort((a, b) => b.b.length - a.b.length)) {
+      const used = new Set(c.b.map((x) => COLOR.get(x)));
+      let k = hash(c.id) % 6;
+      for (let i = 0; i < 6 && used.has(k); i++) k = (k + 1) % 6;
+      COLOR.set(c.id, k);
+    }
 })();
 
 const MODES = {
@@ -456,9 +511,24 @@ const MODES = {
   mixed: { t: "Mixed", ok: () => true },
 };
 const SKILLS = Object.keys(MODES).filter((k) => k !== "mixed");
+
+const ISLES = new Set(
+  "ATG BHS BRB CUB DMA DOM GRD HTI JAM KNA LCA VCT TTO CYP ISL IRL MLT GBR CPV COM MDG MUS STP SYC BHR IDN JPN MDV PHL SGP LKA TLS FJI KIR MHL FSM NRU NZL PLW PNG WSM SLB TON TUV VUT ABW AIA ALA ASM ATF BLM SHN BMU BES CCK COK CUW CXR CYM FLK FRO GGY GLP GRL GUM IMN IOT JEY MNP MSR MTQ MYT NCL NFK NIU PCN PRI PYF REU SGS SJM SPM TCA TKL TWN VGB VIR WLF MAF SXM".split(
+    " ",
+  ),
+);
+
+const inRegion = (c, region) =>
+  subOf(region)
+    ? c.st === subOf(region) && (c.ind || S.settings.subx !== false)
+    : region === "Islands"
+      ? ISLES.has(c.id) && (c.ind || S.settings.terr)
+      : inPlay(c) && (region === "World" || region.split(",").includes(c.r));
 function poolFor(mode, region) {
-  const R = region === "World" ? null : region.split(",");
-  return G.countries.filter((c) => inPlay(c) && (!R || R.includes(c.r)) && MODES[mode].ok(c));
+  const sb = subOf(region);
+  return (sb ? (SUBS[sb] || { cs: [] }).cs : G.countries).filter(
+    (c) => inRegion(c, region) && MODES[mode].ok(c),
+  );
 }
 const isIsle = (c) => !(c.b && c.b.length) && c.ar < 30000;
 const inPlay = (c) => (c.ind || S.settings.terr) && (S.settings.isl !== false || !isIsle(c));
