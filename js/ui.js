@@ -249,7 +249,9 @@ function toast(msg) {
 }
 
 const TIERS = ["Bronze", "Silver", "Gold"];
-const sMast = (m) => () => mastery(m).n;
+
+const sMast = (m) => () =>
+  Object.keys(S.prog[m] || {}).filter((id) => C.has(id) && mastered(m, id)).length;
 const BADGES = [
   {
     id: "games",
@@ -264,7 +266,7 @@ const BADGES = [
     id: "streak",
     sh: "shield",
     t: "On fire",
-    d: (n) => `${n} right in a row`,
+    d: (n) => `${n} right in a row, across games`,
     ic: "bolt",
     v: () => S.best || 0,
     at: [15, 40, 100],
@@ -289,7 +291,7 @@ const BADGES = [
     d: (n) => `${nf.format(n)} correct answers`,
     ic: "target",
     v: () => S.tot.c || 0,
-    at: [500, 2500, 10000],
+    at: [250, 1500, 5000],
   },
   {
     id: "locate",
@@ -298,7 +300,7 @@ const BADGES = [
     d: (n) => `Locate ${n} countries`,
     ic: "locate",
     v: sMast("locate"),
-    at: [40, 100, 175],
+    at: [40, 100, 150],
   },
   {
     id: "identify",
@@ -307,7 +309,7 @@ const BADGES = [
     d: (n) => `Identify ${n} countries`,
     ic: "identify",
     v: sMast("identify"),
-    at: [40, 100, 175],
+    at: [40, 100, 150],
   },
   {
     id: "flags",
@@ -316,7 +318,7 @@ const BADGES = [
     d: (n) => `Master ${n} flags`,
     ic: "flags",
     v: sMast("flags"),
-    at: [40, 100, 175],
+    at: [40, 100, 150],
   },
   {
     id: "capitals",
@@ -325,7 +327,7 @@ const BADGES = [
     d: (n) => `Master ${n} capitals`,
     ic: "capitals",
     v: sMast("capitals"),
-    at: [40, 100, 175],
+    at: [40, 90, 140],
   },
   {
     id: "languages",
@@ -334,7 +336,7 @@ const BADGES = [
     d: (n) => `Master ${n} in Languages`,
     ic: "languages",
     v: sMast("languages"),
-    at: [25, 60, 120],
+    at: [25, 60, 110],
   },
   {
     id: "currencies",
@@ -343,7 +345,7 @@ const BADGES = [
     d: (n) => `Master ${n} currencies`,
     ic: "currencies",
     v: sMast("currencies"),
-    at: [25, 60, 120],
+    at: [40, 100, 150],
   },
   {
     id: "neighbours",
@@ -352,7 +354,7 @@ const BADGES = [
     d: (n) => `Master ${n} in Neighbors`,
     ic: "neighbours",
     v: sMast("neighbours"),
-    at: [25, 60, 120],
+    at: [25, 70, 140],
   },
   {
     id: "explorer",
@@ -361,7 +363,7 @@ const BADGES = [
     d: (n) => `Open ${n} countries`,
     ic: "compass",
     v: () => S.viewed.length,
-    at: [50, 150, 240],
+    at: [50, 120, 200],
   },
   {
     id: "days",
@@ -388,7 +390,7 @@ const BADGES = [
     d: (n) => `Reach level ${n}`,
     ic: "trophy",
     v: () => lvlInfo(S.xp).n,
-    at: [10, 25, 50],
+    at: [10, 20, 35],
   },
 ];
 const tierOf = (b) => {

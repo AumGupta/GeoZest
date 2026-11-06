@@ -476,8 +476,12 @@ function settle(ok, q, picked) {
     Q.streak++;
     Q.correct++;
     Q.maxStreak = Math.max(Q.maxStreak, Q.streak);
-    S.best = Math.max(S.best, Q.streak);
-  } else Q.streak = 0;
+    S.run = (S.run || 0) + 1;
+    S.best = Math.max(S.best, S.run);
+  } else {
+    Q.streak = 0;
+    S.run = 0;
+  }
   Q.score += p;
   record(q.mode, q.id, ok);
   Q.log.push({ q, ok, picked });
