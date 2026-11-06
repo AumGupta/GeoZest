@@ -57,6 +57,14 @@ function sheetOpen(kind, top, body, { snap = "full", onClose, foot = "" } = {}) 
   }
   $$("[data-close]", SH.el).forEach((b) => (b.onclick = sheetClose));
 }
+
+const EASE = "cubic-bezier(.2,.8,.2,1)";
+function sheetResize(h0) {
+  if (reduced() || SH.el.hidden || SH.el.classList.contains("tall")) return;
+  const h1 = SH.el.getBoundingClientRect().height;
+  if (Math.abs(h1 - h0) < 2) return;
+  SH.el.animate([{ height: h0 + "px" }, { height: h1 + "px" }], { duration: 320, easing: EASE });
+}
 function fitTall() {
   if (!SH.el.classList.contains("tall") || !isPhone()) {
     SH.el.style.height = "";
@@ -240,62 +248,183 @@ function toast(msg) {
   toastT = setTimeout(() => t.remove(), 2800);
 }
 
-const ACH = [
-  { id: "first", t: "Finish a quiz", p: () => [Math.min(1, S.sessions.length), 1] },
+const TIERS = ["Bronze", "Silver", "Gold"];
+const sMast = (m) => () => mastery(m).n;
+const BADGES = [
   {
-    id: "flawless",
-    t: "100% on 10+ questions",
-    p: () => [S.sessions.some((s) => s.total >= 10 && s.correct === s.total) ? 1 : 0, 1],
+    id: "games",
+    sh: "circle",
+    t: "Quiz runner",
+    d: (n) => `Finish ${n} ${n > 1 ? "quizzes" : "quiz"}`,
+    ic: "check",
+    v: () => Math.max(S.games || 0, S.sessions.length),
+    at: [5, 50, 250],
   },
-  { id: "hot10", t: "10 correct in a row", p: () => [Math.min(S.best, 10), 10] },
-  { id: "hot25", t: "25 correct in a row", p: () => [Math.min(S.best, 25), 25] },
-  { id: "explorer", t: "Open 25 countries", p: () => [Math.min(S.viewed.length, 25), 25] },
-  { id: "vex", t: "Master 50 flags", p: () => [Math.min(mastery("flags").n, 50), 50] },
+  {
+    id: "streak",
+    sh: "shield",
+    t: "On fire",
+    d: (n) => `${n} right in a row`,
+    ic: "bolt",
+    v: () => S.best || 0,
+    at: [15, 40, 100],
+  },
+  {
+    id: "perfect",
+    sh: "seal",
+    t: "Flawless",
+    d: (n) => `${n} perfect ${n > 1 ? "rounds" : "round"} of 10+`,
+    ic: "star",
+    v: () =>
+      Math.max(
+        S.perfects || 0,
+        S.sessions.filter((x) => x.total >= 10 && x.correct === x.total).length,
+      ),
+    at: [3, 15, 50],
+  },
+  {
+    id: "answers",
+    sh: "oct",
+    t: "Sharpshooter",
+    d: (n) => `${nf.format(n)} correct answers`,
+    ic: "target",
+    v: () => S.tot.c || 0,
+    at: [500, 2500, 10000],
+  },
+  {
+    id: "locate",
+    sh: "hex",
+    t: "Cartographer",
+    d: (n) => `Locate ${n} countries`,
+    ic: "locate",
+    v: sMast("locate"),
+    at: [40, 100, 175],
+  },
+  {
+    id: "identify",
+    sh: "diamond",
+    t: "Shape spotter",
+    d: (n) => `Identify ${n} countries`,
+    ic: "identify",
+    v: sMast("identify"),
+    at: [40, 100, 175],
+  },
+  {
+    id: "flags",
+    sh: "square",
+    t: "Flag expert",
+    d: (n) => `Master ${n} flags`,
+    ic: "flags",
+    v: sMast("flags"),
+    at: [40, 100, 175],
+  },
   {
     id: "capitals",
-    t: "Master 100 capitals",
-    p: () => [Math.min(mastery("capitals").n, 100), 100],
+    sh: "pent",
+    t: "Capital minded",
+    d: (n) => `Master ${n} capitals`,
+    ic: "capitals",
+    v: sMast("capitals"),
+    at: [40, 100, 175],
   },
   {
-    id: "cartog",
-    t: "Locate all of one region",
-    p: () => {
-      const b = Math.max(
-        ...REGIONS.map((r) => {
-          const m = mastery("locate", r);
-          return m.n / m.t;
-        }),
-      );
-      return [Math.round(b * 100), 100];
-    },
+    id: "languages",
+    sh: "hex",
+    t: "Polyglot",
+    d: (n) => `Master ${n} in Languages`,
+    ic: "languages",
+    v: sMast("languages"),
+    at: [25, 60, 120],
   },
-  { id: "poly", t: "Master 30 in Languages", p: () => [Math.min(mastery("languages").n, 30), 30] },
-  { id: "days3", t: "3-day streak", p: () => [Math.min(dayStreak(), 3), 3] },
-  { id: "days7", t: "7-day streak", p: () => [Math.min(dayStreak(), 7), 7] },
-  { id: "lvl5", t: "Reach level 5", p: () => [Math.min(lvlInfo(S.xp).n, 5), 5] },
+  {
+    id: "currencies",
+    sh: "oct",
+    t: "Money talks",
+    d: (n) => `Master ${n} currencies`,
+    ic: "currencies",
+    v: sMast("currencies"),
+    at: [25, 60, 120],
+  },
+  {
+    id: "neighbours",
+    sh: "pent",
+    t: "Good neighbour",
+    d: (n) => `Master ${n} in Neighbors`,
+    ic: "neighbours",
+    v: sMast("neighbours"),
+    at: [25, 60, 120],
+  },
+  {
+    id: "explorer",
+    sh: "diamond",
+    t: "Explorer",
+    d: (n) => `Open ${n} countries`,
+    ic: "compass",
+    v: () => S.viewed.length,
+    at: [50, 150, 240],
+  },
+  {
+    id: "days",
+    sh: "shield",
+    t: "Daily habit",
+    d: (n) => `${n}-day streak`,
+    ic: "flame",
+    v: () => Math.max(S.bestDays || 0, dayStreak()),
+    at: [7, 30, 100],
+  },
+  {
+    id: "daily",
+    sh: "square",
+    t: "Challenger",
+    d: (n) => `${n} daily ${n > 1 ? "challenges" : "challenge"}`,
+    ic: "daily",
+    v: () => Object.keys(S.daily).length,
+    at: [5, 30, 100],
+  },
+  {
+    id: "level",
+    sh: "seal",
+    t: "Climber",
+    d: (n) => `Reach level ${n}`,
+    ic: "trophy",
+    v: () => lvlInfo(S.xp).n,
+    at: [10, 25, 50],
+  },
 ];
-function checkAch() {
+const tierOf = (b) => {
+  const v = b.v();
+  return b.at.filter((x) => v >= x).length;
+};
+const badgeTier = (b) => Math.max((S.badges2 || {})[b.id] || 0, tierOf(b));
+
+function checkBadges() {
+  if (!S.badges2) {
+    S.badges2 = {};
+    for (const b of BADGES) S.badges2[b.id] = tierOf(b);
+    save();
+    return [];
+  }
   const got = [];
-  for (const a of ACH) {
-    if (S.ach[a.id]) continue;
-    const [v, m] = a.p();
-    if (v >= m) {
-      S.ach[a.id] = todayKey();
-      got.push(a);
+  for (const b of BADGES) {
+    const t = tierOf(b);
+    if (t > (S.badges2[b.id] || 0)) {
+      S.badges2[b.id] = t;
+      got.push([b, t]);
     }
   }
-  if (got.length) {
-    save();
-    got.forEach((a, i) => setTimeout(() => toast(a.t), i * 2000 + 400));
-  }
+  if (got.length) save();
+  return got;
 }
 
 function renderChrome() {
   const L = lvlInfo(S.xp);
   $("#meLvl").textContent = L.n;
-  $("#meRing").setAttribute("stroke-dasharray", `${L.pct} 100`);
-  $("#btnProj").textContent =
-    { globe: "3D", geoid: "GEO", ee: "EE", merc: "MRC" }[S.settings.proj] || "3D";
+  $("#meRing").style.strokeDasharray = `${L.pct} 100`;
+  {
+    const j = PJ.find((x) => x[0] === S.settings.proj) || PJ[0];
+    $("#btnProj").textContent = j[1];
+    $("#btnProj").setAttribute("aria-label", `Map view: ${j[2]}`);
+  }
   $("#dailyDot").hidden = !!S.daily[todayKey()];
 }
 
@@ -309,7 +438,7 @@ function countryBlock(c, { right = "", extra = "", fact = true } = {}) {
     <div class="info-h"><button class="flagbtn" data-flag="${c.id}" aria-label="Enlarge the flag of ${esc(c.n)}">${flag(c)}</button><div class="nmw"><div class="nm${Math.max(...c.n.split(" ").map((w) => w.length)) > 12 ? " xl" : Math.max(...c.n.split(" ").map((w) => w.length)) > 9 ? " l" : ""}">${esc(c.n)}${sayBtn(c, "name")}</div><div class="capn">${esc(c.cap.join(", ") || c.sr || c.r)}</div></div>${right}</div>
     <div class="facts">
       <div><div class="k">Population</div><div class="v mono">${fmtPop(c.pop)}${c.pop ? ` <small>${c.py || ""}</small>` : ""}</div></div>
-      <div><div class="k">Area</div><div class="v mono">${fmtArea(c.ar)} km²</div></div>
+      <div><div class="k">Area</div><div class="v mono">${areaTxt(c.ar)}</div></div>
       <div class="full"><div class="k">Language${c.l.length > 1 ? "s" : ""}</div><div class="v">${lang || "n/a"}</div></div>
       ${extra}
     </div>
@@ -559,7 +688,7 @@ function openAntarctica() {
   M.setPins([]);
   const top = `<div class="row-x"><span class="cap">Continent, no countries</span><button class="x" data-close aria-label="Close">${I.x}</button></div>`;
   const body = `<div data-peek-end><div class="info"><div class="info-h"><div class="nmw"><div class="nm">Antarctica</div><div class="capn">No capital, no permanent residents</div></div></div>
-      <div class="facts"><div><div class="k">Area</div><div class="v mono">14.2 m km²</div></div><div><div class="k">Residents</div><div class="v mono">0</div></div>
+      <div class="facts"><div><div class="k">Area</div><div class="v mono">${S.settings.units === "mi" ? "5.5 m mi²" : "14.2 m km²"}</div></div><div><div class="k">Residents</div><div class="v mono">0</div></div>
       <div><div class="k">Coldest</div><div class="v mono">−89.2 °C</div></div><div><div class="k">Highest</div><div class="v mono">4,892 m</div></div></div></div>
     <div class="gap"></div><button class="peng" id="peng" aria-label="Talk to the penguin"><span class="pgw">${PENGSVG}</span><span class="bub" id="bub" aria-live="polite">${PENG[0]}</span></button></div>
     <div class="gap"></div><div class="rows">
@@ -587,6 +716,11 @@ function openCountry(id) {
   }
   const c = C.get(id);
   if (!c) return;
+  if (!S.viewed.includes(id)) {
+    S.viewed.push(id);
+    save();
+    if (!Q) popBadges(checkBadges());
+  }
   const nb = c.b.map((x) => C.get(x)).filter(Boolean);
   const rank = areaRank.get(id);
   const reg = REGIONS.includes(c.r) ? c.r : "World";
@@ -715,20 +849,68 @@ const MDESC = {
 };
 const CHEV = '<svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>';
 let pickOpen = false;
+
+function glist(open, done) {
+  const gl = $("#glist"),
+    gp = $("#gpick");
+  if (!gl) return;
+  pickOpen = open;
+  gp.setAttribute("aria-expanded", open);
+  $("#gbox").classList.toggle("open", open);
+  if (reduced()) {
+    gl.hidden = !open;
+    done && done();
+    return;
+  }
+  if (open) {
+    gl.hidden = false;
+    const h = gl.offsetHeight;
+    gl.animate(
+      [
+        { height: "0px", marginBottom: "0px", opacity: 0.4 },
+        { height: h + "px", marginBottom: "6px", opacity: 1 },
+      ],
+      { duration: 340, easing: EASE },
+    );
+    [...gl.children].forEach((b, i) =>
+      b.animate(
+        [
+          { opacity: 0, transform: "translateX(22px)" },
+          { opacity: 1, transform: "none" },
+        ],
+        { duration: 280, delay: 50 + i * 30, easing: EASE, fill: "backwards" },
+      ),
+    );
+    done && done();
+  } else {
+    const h = gl.offsetHeight;
+    const a = gl.animate(
+      [
+        { height: h + "px", marginBottom: "6px", opacity: 1 },
+        { height: "0px", marginBottom: "0px", opacity: 0 },
+      ],
+      { duration: 300, easing: EASE },
+    );
+    a.onfinish = () => {
+      gl.hidden = true;
+      done && done();
+    };
+  }
+}
 function openPlay() {
   const again = SH.kind === "play";
   if (!again) {
     playMoved = false;
     pickOpen = false;
   }
+  const fk = (el, i) => el.dataset.r || el.dataset.inc || el.className + i;
+  const FL = "[data-r],[data-inc],.plabel,.pnote,.seg,.tgl,.gpick";
   const prev = again
     ? new Map(
-        [...SH.body.querySelectorAll("[data-r]")].map((b) => [
-          b.dataset.r,
-          b.getBoundingClientRect(),
-        ]),
+        [...SH.body.querySelectorAll(FL)].map((b, i) => [fk(b, i), b.getBoundingClientRect()]),
       )
     : null;
+  const h0 = again ? SH.el.getBoundingClientRect().height : 0;
   const st = S.settings;
   const dd = S.daily[todayKey()];
   const keep = again ? SH.body.scrollTop : 0;
@@ -743,38 +925,40 @@ function openPlay() {
     const m = mastery(k, st.region);
     return m.t ? Math.round((m.n / m.t) * 100) : 0;
   };
-  const dt = dailyTask(),
-    streak = dayStreak();
+  const dt = dailyTask();
   const daily = dd
-    ? `<div class="dcard done"><span class="dc-ic">${I.daily}</span><span class="dc-tx"><span class="dc-k">Daily challenge</span><b>Done, ${dd.c} of ${dd.t} correct</b><span class="dc-s">${streak > 1 ? `${streak}-day streak. ` : ""}New challenge tomorrow</span></span><span class="dc-ok">${CK}</span></div>`
+    ? ""
     : `<button class="dcard" data-daily><span class="dc-ic">${I.daily}</span><span class="dc-tx"><span class="dc-k">Daily challenge</span><b>${dt.text}</b><span class="dc-s">${dt.where}, +${DAILY_XP} bonus XP</span></span><span class="dc-go">Play</span></button>`;
   const row = (k, tag, attrs) =>
     `<${tag} ${attrs}><span class="gp-ic">${I[k]}</span><span class="gp-tx"><b>${MODES[k].t}</b><span>${MDESC[k]}</span></span><span class="gp-p">${pct(k)}%</span>`;
   const top = `<div class="row-x"><h2 class="title">Play</h2><button class="x" data-close aria-label="Close">${I.x}</button></div>`;
-  const body = `${daily}
-    <div class="gap"></div>
-    <div class="cap gcap">Game</div>
-    ${row(st.pick, "button", `class="gpick" id="gpick" aria-expanded="${pickOpen}" aria-controls="glist"`)}${cardArt(st.pick)}<span class="gp-ch">${CHEV}</span></button>
-    <div class="glist" id="glist" role="listbox" aria-label="Game type" ${pickOpen ? "" : "hidden"}>${Object.keys(
+  const body = `${daily ? daily + '<div class="gap"></div>' : ""}
+    <div class="cap gcap">Game type</div>
+    <div class="gbox${pickOpen ? " open" : ""}" id="gbox">${row(st.pick, "button", `class="gpick" id="gpick" aria-expanded="${pickOpen}" aria-controls="glist"`)}${cardArt(st.pick)}<span class="gp-ch">${CHEV}</span></button>
+    <div class="glist" id="glist" role="listbox" aria-label="Other game types" ${pickOpen ? "" : "hidden"}>${Object.keys(
       MODES,
     )
+      .filter((k) => k !== st.pick)
       .map(
         (k) =>
-          row(
-            k,
-            "button",
-            `class="gopt" role="option" data-pick="${k}" aria-selected="${k === st.pick}"`,
-          ) +
-          (k === st.pick ? `<span class="gp-ck">${CK}</span>` : "") +
+          row(k, "button", `class="gopt" role="option" data-pick="${k}" aria-selected="false"`) +
           "</button>",
       )
-      .join("")}</div>
+      .join("")}</div></div>
     <div class="gap"></div>
     <div class="popts">
       <span class="plabel">Region</span><div class="prow wrap" role="group" aria-label="Selected region">${regs.filter(on).map(chip).join("")}</div>
       ${rest.length ? `<div class="prow wrap ravail" role="group" aria-label="Add a region">${rest.map(chip).join("")}</div>` : ""}
       <div class="pnote">${G.countries.filter((c) => inPlay(c) && (!sel.length || sel.includes(c.r))).length} countries${sel.length ? ` in ${sel.length === 1 ? sel[0] : sel.slice(0, -1).join(", ") + " and " + sel[sel.length - 1]}` : ", whole world"}</div>
-      <span class="plabel">Include</span><div class="prow" role="group" aria-label="Include"><button class="pill rchip" data-inc="isl" aria-pressed="${st.isl !== false}">${st.isl !== false ? CK : ""}Small islands</button><button class="pill rchip" data-inc="terr" aria-pressed="${!!st.terr}">${st.terr ? CK : ""}Territories</button></div>
+      <span class="plabel">Include</span><div class="prow" role="group" aria-label="Include">${[
+        ["isl", "Small islands", st.isl !== false],
+        ["terr", "Territories", !!st.terr],
+      ]
+        .map(
+          ([k, t, v]) =>
+            `<button class="pill rchip${v ? "" : " off"}" data-inc="${k}" aria-pressed="${v}">${v ? CK : PLUS}${t}</button>`,
+        )
+        .join("")}</div>
       <span class="plabel">Questions</span><div class="prow"><div class="seg" role="radiogroup" aria-label="Number of questions" style="--i:${Math.max(0, [10, 20, 30].indexOf(st.len))}">${[10, 20, 30].map((n) => `<button role="radio" data-l="${n}" aria-checked="${n === st.len}" aria-label="${n} questions">${n}</button>`).join("")}<span class="seg-k" aria-hidden="true"></span></div>
       <span class="tgl"><span class="plabel">Timer</span><button class="sw tsw" role="switch" data-t aria-checked="${!!st.timer}" aria-label="Timer"><span class="knob"><span class="on">${I.timer}</span><span class="off">${I.timerOff}</span></span></button></span></div>
     </div>`;
@@ -800,20 +984,21 @@ function openPlay() {
   M.focus = sel.length ? new Set(sel) : null;
   M.sched();
   document.body.classList.add("psheet");
-  if (prev && !reduced())
-    for (const b of SH.body.querySelectorAll("[data-r]")) {
-      const a = prev.get(b.dataset.r);
-      if (!a) continue;
+  if (prev && !reduced()) {
+    [...SH.body.querySelectorAll(FL)].forEach((b, i) => {
+      const a = prev.get(fk(b, i));
+      if (!a) return;
       const n = b.getBoundingClientRect(),
         dx = a.left - n.left,
         dy = a.top - n.top;
-      if (!dx && !dy) continue;
-      b.style.transition = "none";
-      b.style.transform = `translate(${dx}px,${dy}px)`;
-      b.getBoundingClientRect();
-      b.style.transition = "transform .38s var(--ease)";
-      b.style.transform = "";
-    }
+      if (Math.abs(dx) < 1 && Math.abs(dy) < 1) return;
+      b.animate([{ transform: `translate(${dx}px,${dy}px)` }, { transform: "none" }], {
+        duration: 380,
+        easing: EASE,
+      });
+    });
+    sheetResize(h0);
+  }
   SH.foot.onclick = (e) => {
     if (e.target.closest("#goPlay"))
       startQuiz({ mode: st.pick, region: st.region, n: st.len, timer: st.timer });
@@ -824,17 +1009,15 @@ function openPlay() {
       return;
     }
     if (e.target.closest("#gpick")) {
-      pickOpen = !pickOpen;
-      $("#glist").hidden = !pickOpen;
-      $("#gpick").setAttribute("aria-expanded", pickOpen);
+      glist(!pickOpen);
       return;
     }
     const pk = e.target.closest("[data-pick]");
     if (pk) {
       st.pick = pk.dataset.pick;
-      pickOpen = false;
       save();
-      openPlay();
+      $$("[data-pick]", SH.body).forEach((o) => o.setAttribute("aria-selected", o === pk));
+      glist(false, () => openPlay());
       return;
     }
     const r = e.target.closest("[data-r]"),
@@ -894,75 +1077,258 @@ function coverage(on) {
     if (s > 0) M.cls(c.id, "m" + Math.min(4, Math.ceil((s / 7) * 4)));
   }
 }
+const IC = {
+  globe:
+    '<svg class="i" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/></svg>',
+  target:
+    '<svg class="i" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.2" fill="currentColor"/></svg>',
+  check:
+    '<svg class="i" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="m8 12.5 2.8 2.8L16.5 9.5"/></svg>',
+  bolt: '<svg class="i" viewBox="0 0 24 24"><path d="M13 2 4.5 13.5H11L10 22l8.5-11.5H12z"/></svg>',
+  star: '<svg class="i" viewBox="0 0 24 24"><path d="m12 3 2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1-4.4-4.3 6.1-.9z"/></svg>',
+  compass:
+    '<svg class="i" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="m15.5 8.5-2 5-5 2 2-5z"/></svg>',
+  trophy:
+    '<svg class="i" viewBox="0 0 24 24"><path d="M8 4h8v5a4 4 0 0 1-8 0zM8 6H5v1a3 3 0 0 0 3 3M16 6h3v1a3 3 0 0 1-3 3M12 13v4M9 20h6M10 17h4"/></svg>',
+  sun: '<svg class="i" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>',
+  moon: '<svg class="i" viewBox="0 0 24 24"><path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/></svg>',
+  gear: '<svg class="i" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>',
+  back: '<svg class="i" viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg>',
+};
+const ME_FOOT = () => {
+  return `<a class="cta primary" href="${LINKS.support}" target="_blank" rel="noopener"><svg class="i" viewBox="0 0 24 24"><path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z" fill="var(--pink)" stroke="none"/></svg>Support</a><a class="cta ghost" href="${LINKS.repo}" target="_blank" rel="noopener"><svg class="i" viewBox="0 0 24 24"><path d="M12 2a10 10 0 0 0-3.2 19.5c.5.1.7-.2.7-.5v-1.7c-2.8.6-3.4-1.3-3.4-1.3-.4-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 .1 1.5 1 1.5 1 .9 1.5 2.3 1.1 2.9.8.1-.6.3-1.1.6-1.3-2.2-.3-4.6-1.1-4.6-5a3.9 3.9 0 0 1 1-2.7c-.1-.3-.5-1.3.1-2.7 0 0 .8-.3 2.8 1a9.6 9.6 0 0 1 5 0c1.9-1.3 2.8-1 2.8-1 .5 1.4.2 2.4.1 2.7a3.9 3.9 0 0 1 1 2.7c0 3.9-2.3 4.7-4.6 5 .4.3.7.9.7 1.9V21c0 .3.2.6.7.5A10 10 0 0 0 12 2z" fill="currentColor" stroke="none"/></svg>GitHub</a>`;
+};
+const bIc = (b) => IC[b.ic] || I[b.ic] || IC.star;
+
+const SHAPE = (() => {
+  const poly = (n, r, rot = 0, rr = 7) => {
+    const P = d3.range(n).map((i) => {
+      const a = rot + (i * 2 * Math.PI) / n;
+      return [50 + r * Math.cos(a), 50 + r * Math.sin(a)];
+    });
+    return roundPath(P, rr);
+  };
+  function roundPath(P, r) {
+    let d = "";
+    const n = P.length;
+    for (let i = 0; i < n; i++) {
+      const a = P[(i + n - 1) % n],
+        b = P[i],
+        c = P[(i + 1) % n];
+      const u = (p, q) => {
+        const dx = q[0] - p[0],
+          dy = q[1] - p[1],
+          l = Math.hypot(dx, dy);
+        return [dx / l, dy / l, l];
+      };
+      const [ux, uy, l1] = u(b, a),
+        [vx, vy, l2] = u(b, c);
+      const k = Math.min(r, l1 / 2, l2 / 2);
+      const p1 = [b[0] + ux * k, b[1] + uy * k],
+        p2 = [b[0] + vx * k, b[1] + vy * k];
+      d +=
+        (i ? "L" : "M") +
+        p1.map((x) => x.toFixed(2)) +
+        "Q" +
+        b.map((x) => x.toFixed(2)) +
+        " " +
+        p2.map((x) => x.toFixed(2));
+    }
+    return d + "Z";
+  }
+  const seal = () => {
+    const P = [];
+    for (let i = 0; i < 24; i++) {
+      const a = (i * Math.PI) / 12 - Math.PI / 2,
+        r = i % 2 ? 44 : 49;
+      P.push([50 + r * Math.cos(a), 50 + r * Math.sin(a)]);
+    }
+    return roundPath(P, 3.5);
+  };
+  return {
+    circle: "M50 2a48 48 0 1 0 .01 0Z",
+    hex: poly(6, 49, -Math.PI / 2, 9),
+    oct: poly(8, 49, Math.PI / 8, 7),
+    pent: poly(5, 50, -Math.PI / 2, 10),
+    diamond: poly(4, 51, -Math.PI / 2, 12),
+    square: roundPath(
+      [
+        [6, 6],
+        [94, 6],
+        [94, 94],
+        [6, 94],
+      ],
+      20,
+    ),
+    seal: seal(),
+    shield: "M50 2C64 9 78 11 92 11V48C92 74 73 90 50 98C27 90 8 74 8 48V11C22 11 36 9 50 2Z",
+  };
+})();
+const icInner = (b) =>
+  bIc(b)
+    .replace(/^<svg[^>]*>/, "")
+    .replace(/<\/svg>$/, "");
+let BID = 0;
+const medal = (b, t, cls = "") => {
+  const d = SHAPE[b.sh] || SHAPE.circle,
+    id = "bc" + ++BID;
+  return `<span class="medal t${t} ${cls}" aria-hidden="true"><svg viewBox="-4 -4 108 108"><defs><clipPath id="${id}"><path d="${d}"/></clipPath></defs>
+  <path class="o" d="${d}"/><path class="f" d="${d}" transform="translate(50 50) scale(.84) translate(-50 -50)"/>
+  <svg class="gi" x="27" y="27" width="46" height="46" viewBox="0 0 24 24">${icInner(b)}</svg>
+  ${t ? `<g clip-path="url(#${id})"><g class="shn"><rect x="-20" y="-20" width="26" height="140" transform="skewX(-18)"/></g></g>` : ""}</svg>${t ? `<span class="tp">${TIERS[t - 1]}</span>` : ""}</span>`;
+};
 function openMe() {
   const L = lvlInfo(S.xp);
   const acc = S.tot.a ? Math.round((S.tot.c / S.tot.a) * 100) : 0;
-  const known = sovereign.filter((c) => countryScore(c.id) > 0).length;
   const R = ["World", ...REGIONS];
-  const top = `<div class="row-x"><div><h2 class="title">Level ${L.n}</h2><div class="cap" style="margin-top:3px">${L.into} / ${L.need} XP</div></div><button class="x" data-close aria-label="Close">${I.x}</button></div><div class="xpbar" style="margin-top:12px"><i style="width:${L.pct}%"></i></div>`;
+  const top = `<div class="row-x"><div><h2 class="title">Level ${L.n}</h2><div class="cap" style="margin-top:3px">${L.into} / ${L.need} XP</div></div><span class="hbtns end"><button class="x" id="toTheme" aria-label="${S.settings.night ? "Switch to light theme" : "Switch to dark theme"}">${S.settings.night ? IC.sun : IC.moon}</button><button class="x" id="toSet" aria-label="Settings">${IC.gear}</button><button class="x" data-close aria-label="Close">${I.x}</button></span></div><div class="xpbar" style="margin-top:12px"><i style="width:${L.pct}%"></i></div>`;
+  const stat = (ic, v, t) => `<div><span class="si">${ic}</span><b>${v}</b><span>${t}</span></div>`;
   const body = `<div class="grid-stats">
-      <div><b>${known}</b><span>Known</span></div><div><b>${acc}%</b><span>Accuracy</span></div><div><b>${dayStreak()}</b><span>Day streak</span></div>
-      <div><b>${nf.format(S.tot.a)}</b><span>Answers</span></div><div><b>${S.best}</b><span>Best run</span></div><div><b>${nf.format(S.xp)}</b><span>XP</span></div>
+      ${stat(IC.star, nf.format(S.xp), "XP")}${stat(IC.target, acc + "%", "Accuracy")}${stat(I.flame, dayStreak(), "Day streak")}
     </div>
     <div class="gap"></div><div class="cap">Mastery %</div>
-    <table class="mt"><thead><tr><th></th>${R.map((r) => `<th>${RSHORT[r]}</th>`).join("")}</tr></thead><tbody>
+    <div class="mx" role="table" aria-label="Mastery by mode and region"><span></span>${R.map((r) => `<span class="mx-h" title="${r}">${RSHORT[r]}</span>`).join("")}
     ${SKILLS.map(
       (m) =>
-        `<tr><td>${MODES[m].t}</td>${R.map((r) => {
+        `<span class="mt-m">${I[m]}${MODES[m].t}</span>${R.map((r) => {
           const x = mastery(m, r);
           const p = x.t ? Math.round((x.n / x.t) * 100) : 0;
-          return `<td class="${p ? "" : "z"}">${p}</td>`;
-        }).join("")}</tr>`,
+          return `<span class="hc${p ? "" : " z"}${p >= 55 ? " hi" : ""}" style="--h:${p}%" title="${MODES[m].t}, ${r}: ${p}%">${p}</span>`;
+        }).join("")}`,
     ).join("")}
-    </tbody></table>
-    <div class="gap"></div><div class="cap">Achievements ${Object.keys(S.ach).length}/${ACH.length}</div>
-    ${ACH.map((a) => {
-      const [v, m] = a.p();
-      const on = !!S.ach[a.id];
-      return `<div class="ach ${on ? "on" : ""}"><i></i><span>${a.t}</span><span class="mono" style="flex:none;font-size:12px;color:var(--muted)">${on ? "" : v + "/" + m}</span></div>`;
-    }).join("")}
-    <div class="gap"></div><div class="cap">Settings</div>
-    <div class="set"><span>Night</span><button class="sw" role="switch" data-s="night" aria-checked="${!!S.settings.night}" aria-label="Night"></button></div>
-    <div class="set"><span>Sound</span><button class="sw" role="switch" data-s="sound" aria-checked="${!!S.settings.sound}" aria-label="Sound"></button></div>
-    <div class="set" style="align-items:flex-start"><span style="padding-top:5px">Map</span><span class="pills" style="justify-content:flex-end">${[
-      ["globe", "Globe"],
-      ["geoid", "Geoid"],
-      ["ee", "Equal Earth"],
-      ["merc", "Mercator"],
-    ]
-      .map(
-        ([k, t]) =>
-          `<button class="pill" data-pj="${k}" aria-pressed="${S.settings.proj === k}">${t}</button>`,
-      )
-      .join("")}</span></div>
-    <div class="set"><span>Small islands in quizzes</span><button class="sw" role="switch" data-s="isl" aria-checked="${S.settings.isl !== false}" aria-label="Small islands in quizzes"></button></div>
-    <div class="set"><span>Territories in quizzes</span><button class="sw" role="switch" data-s="terr" aria-checked="${!!S.settings.terr}" aria-label="Territories in quizzes"></button></div>
-    <div class="set"><span>Timer</span><button class="sw" role="switch" data-s="timer" aria-checked="${!!S.settings.timer}" aria-label="Timer"></button></div>
-    <div class="set"><span>Progress</span><span id="rs" style="display:flex;gap:6px"><button class="pill" id="rsGo">Reset</button></span></div>
-    <div class="gap"></div><div class="cap" style="text-transform:none;letter-spacing:0;line-height:1.5">Borders: Natural Earth. Capitals: SimpleMaps (CC BY 4.0). Population: World Bank (latest year shown per country). Pronunciation: AI4Bharat Indic-TTS, Kokoro, Piper, Mimic 3, Coqui and Meta MMS voices, with eSpeak NG as a fallback; IPA from eSpeak NG. Geoid: EGM96. Flags: Wikimedia Commons.</div>`;
-  const foot = `<a class="cta primary" href="${LINKS.support}" target="_blank" rel="noopener"><svg class="i" viewBox="0 0 24 24"><path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z" fill="var(--pink)" stroke="none"/></svg>Support</a><a class="cta ghost" href="${LINKS.repo}" target="_blank" rel="noopener"><svg class="i" viewBox="0 0 24 24"><path d="M12 2a10 10 0 0 0-3.2 19.5c.5.1.7-.2.7-.5v-1.7c-2.8.6-3.4-1.3-3.4-1.3-.4-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 .1 1.5 1 1.5 1 .9 1.5 2.3 1.1 2.9.8.1-.6.3-1.1.6-1.3-2.2-.3-4.6-1.1-4.6-5a3.9 3.9 0 0 1 1-2.7c-.1-.3-.5-1.3.1-2.7 0 0 .8-.3 2.8 1a9.6 9.6 0 0 1 5 0c1.9-1.3 2.8-1 2.8-1 .5 1.4.2 2.4.1 2.7a3.9 3.9 0 0 1 1 2.7c0 3.9-2.3 4.7-4.6 5 .4.3.7.9.7 1.9V21c0 .3.2.6.7.5A10 10 0 0 0 12 2z" fill="currentColor" stroke="none"/></svg>GitHub</a>`;
-  sheetOpen("me", top, body, { snap: "full", foot, onClose: () => coverage(false) });
+    </div>
+    <div class="mt-leg"><span>0</span><i style="--h:0%"></i><i style="--h:25%"></i><i style="--h:50%"></i><i style="--h:75%"></i><i style="--h:100%"></i><span>100%</span></div>
+    <div class="mt-key">${R.map((r) => `<span><b>${RSHORT[r]}</b> ${r}</span>`).join("")}</div>
+    <div class="gap"></div><div class="cap">Achievements ${BADGES.filter((b) => badgeTier(b) > 0).length}/${BADGES.length}</div>
+    <div class="achg">${BADGES.map((b) => ({ b, t: badgeTier(b), v: b.v() }))
+      .sort((x, y) => y.t - x.t || y.v / y.b.at[Math.min(y.t, 2)] - x.v / x.b.at[Math.min(x.t, 2)])
+      .map(({ b, t, v }, i) => {
+        const nx = b.at[t];
+        return `<button class="achc${t ? " on" : ""}" style="--i:${i}" data-badge="${b.id}" aria-label="${b.t}, ${t ? TIERS[t - 1] : "locked"}">${medal(b, t)}<span class="at">${b.t}</span><span class="ap">${nx ? `${nf.format(Math.min(v, nx))}/${nf.format(nx)}` : "Maxed"}</span></button>`;
+      })
+      .join("")}</div>`;
+  sheetOpen("me", top, body, { snap: "full", onClose: () => coverage(false) });
   coverage(true);
-  SH.body.onclick = (e) => {
-    const pj = e.target.closest("[data-pj]");
-    if (pj) {
-      setProj(pj.dataset.pj);
+  SH.top.onclick = (e) => {
+    if (e.target.closest("#toSet")) {
+      openSettings();
       return;
     }
-    const s = e.target.closest("[data-s]");
-    if (s) {
-      const k = s.dataset.s;
-      if (k === "night") {
-        S.settings.night = !S.settings.night;
-        applyTheme();
-      } else if (k === "merc") {
-        setProj(S.settings.proj === "merc" ? "ee" : "merc");
-      } else {
-        S.settings[k] = !S.settings[k];
-        if (k === "sound") applySound();
-      }
+    const th = e.target.closest("#toTheme");
+    if (th) {
+      S.settings.night = !S.settings.night;
       save();
-      s.setAttribute("aria-checked", k === "merc" ? S.settings.proj === "merc" : !!S.settings[k]);
+      applyTheme();
+      th.innerHTML = S.settings.night ? IC.sun : IC.moon;
+      th.setAttribute(
+        "aria-label",
+        S.settings.night ? "Switch to light theme" : "Switch to dark theme",
+      );
+    }
+  };
+  SH.body.onclick = (e) => {
+    const c = e.target.closest("[data-badge]");
+    if (c) badgeInfo(BADGES.find((b) => b.id === c.dataset.badge));
+  };
+  if (!reduced())
+    for (const el of SH.body.querySelectorAll(".achc.on")) {
+      el.onpointermove = (e) => {
+        const r = el.querySelector(".medal").getBoundingClientRect();
+        el.style.setProperty("--ry", ((e.clientX - r.left) / r.width - 0.5) * 18 + "deg");
+        el.style.setProperty("--rx", (0.5 - (e.clientY - r.top) / r.height) * 18 + "deg");
+        el.classList.add("tilt");
+      };
+      el.onpointerleave = () => {
+        el.classList.remove("tilt");
+        el.style.removeProperty("--rx");
+        el.style.removeProperty("--ry");
+      };
+    }
+}
+function openSettings() {
+  const st = S.settings;
+  const sw = (k, label, on, sub = "") =>
+    `<div class="set"><span>${label}${sub ? `<small>${sub}</small>` : ""}</span><button class="sw" role="switch" data-s="${k}" aria-checked="${on}" aria-label="${label}"></button></div>`;
+  const top = `<div class="row-x"><span class="hbtns"><button class="x" data-back aria-label="Back to level">${IC.back}</button><h2 class="title">Settings</h2></span><button class="x" data-close aria-label="Close">${I.x}</button></div>`;
+  const body = `<div class="cap">Display</div>
+    ${sw("night", "Night", !!st.night)}
+    ${sw("labels", "Map labels", st.labels !== false, "Turn off to practise on a blank map")}
+    ${sw("calm", "Reduce motion", !!st.calm, "Fewer animations and instant map moves")}
+    <div class="set"><span>Units</span><span class="pills"><button class="pill" data-u="km" aria-pressed="${st.units !== "mi"}">km</button><button class="pill" data-u="mi" aria-pressed="${st.units === "mi"}">miles</button></span></div>
+    <div class="gap"></div><div class="cap">Sound</div>
+    ${sw("sound", "Sound effects", !!st.sound)}
+    <div class="gap"></div><div class="cap">Progress</div>
+    <div class="set"><span>Back up<small>Save your progress to a file</small></span><button class="pill" id="bkUp">Download</button></div>
+    <div class="set"><span>Restore<small>Load progress from a backup file</small></span><button class="pill" id="bkIn">Choose file</button><input type="file" id="bkFile" accept=".json,application/json" hidden></div>
+    <div class="set"><span>Reset<small>Erase XP, mastery and achievements</small></span><span id="rs" style="display:flex;gap:6px"><button class="pill" id="rsGo">Reset</button></span></div>
+    <div class="gap"></div><div class="cap" style="text-transform:none;letter-spacing:0;line-height:1.5">Borders: Natural Earth. Capitals: SimpleMaps (CC BY 4.0). Population: World Bank (latest year shown per country). Pronunciation: AI4Bharat Indic-TTS, Kokoro, Piper, Mimic 3, Coqui and Meta MMS voices, with eSpeak NG as a fallback; IPA from eSpeak NG. Geoid: EGM96. Flags: Wikimedia Commons.</div>`;
+  sheetOpen("settings", top, body, { snap: "full", foot: ME_FOOT() });
+  SH.top.onclick = (e) => {
+    if (e.target.closest("[data-back]")) openMe();
+  };
+  $("#bkFile").onchange = (e) => {
+    const f = e.target.files && e.target.files[0];
+    if (!f) return;
+    const rd = new FileReader();
+    rd.onload = () => {
+      try {
+        const o = JSON.parse(rd.result);
+        if (typeof o.xp !== "number" || typeof o.prog !== "object") throw 0;
+        const d = defaults();
+        S = Object.assign(d, o, { settings: Object.assign(d.settings, o.settings || {}) });
+        save();
+        applyTheme();
+        applySound();
+        renderChrome();
+        openSettings();
+        toast("Progress restored");
+      } catch (err) {
+        toast("That file is not a GeoZest backup");
+      }
+    };
+    rd.readAsText(f);
+  };
+  SH.body.onclick = (e) => {
+    const s2 = e.target.closest("[data-s]");
+    if (s2) {
+      const k = s2.dataset.s;
+      const cur = k === "labels" ? st.labels !== false : !!st[k];
+      st[k] = !cur;
+      if (k === "night") applyTheme();
+      if (k === "sound") applySound();
+      if (k === "labels") {
+        M.labels = st.labels;
+        M.sched();
+        applyLbl();
+      }
+      if (k === "calm") document.documentElement.classList.toggle("calm", st.calm);
+      save();
+      s2.setAttribute("aria-checked", !cur);
+      return;
+    }
+    const u = e.target.closest("[data-u]");
+    if (u) {
+      st.units = u.dataset.u;
+      save();
+      $$("[data-u]", SH.body).forEach((b) => b.setAttribute("aria-pressed", b === u));
+      M.lastSig = null;
+      return;
+    }
+    if (e.target.closest("#bkUp")) {
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(new Blob([JSON.stringify(S)], { type: "application/json" }));
+      a.download = `geozest-progress-${todayKey()}.json`;
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(() => {
+        URL.revokeObjectURL(a.href);
+        a.remove();
+      }, 500);
+      toast("Backup downloaded");
+      return;
+    }
+    if (e.target.closest("#bkIn")) {
+      $("#bkFile").click();
       return;
     }
     if (e.target.closest("#rsGo")) {
@@ -980,7 +1346,7 @@ function openMe() {
       S.settings = keep;
       save();
       renderChrome();
-      openMe();
+      openSettings();
       toast("Progress erased");
     }
   };
@@ -988,17 +1354,22 @@ function openMe() {
 function setProj(p) {
   if (M.busy || p === M.current()) return;
   S.settings.proj = p;
+  if (p === "geoid") {
+    S.settings.geoHeat = true;
+    M.geoHeatOn = true;
+    M.geoHeat = 1;
+  }
   save();
   renderChrome();
   M.setProjection(p);
   toast(
     {
-      globe: "Globe: the Earth as it really is",
+      globe: "Globe: no stretching, no distortion",
       geoid: "Geoid: Earth's true gravity shape, heights exaggerated",
-      ee: "Equal Earth: every area true to scale",
+      ee: "Equal Earth: every country at its true size",
       merc: "Mercator: true shapes, areas swell toward the poles",
     }[p],
   );
-  if (SH.kind === "me")
+  if (SH.kind === "settings")
     $$("[data-pj]", SH.body).forEach((b) => b.setAttribute("aria-pressed", b.dataset.pj === p));
 }

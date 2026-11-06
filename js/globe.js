@@ -125,8 +125,8 @@ const GEO_LUT = (() => {
 Object.assign(M, {
   mode: S.settings.proj === "globe" || S.settings.proj === "geoid" ? "globe" : "flat",
   geoAmt: S.settings.proj === "geoid" ? 1 : 0,
-  geoHeat: S.settings.geoHeat === false ? 0 : 1,
-  geoHeatOn: S.settings.geoHeat !== false,
+  geoHeat: 1,
+  geoHeatOn: true,
   gc: [10, 20],
   gs: 0,
   gtx: 0,
@@ -312,8 +312,9 @@ Object.assign(M, {
   geoLegend() {
     const el = $("#geoLegend");
     if (!el) return;
-    el.hidden = !(this.mode === "globe" && this.geoAmt > 0.5);
-    el.setAttribute("aria-pressed", this.geoHeatOn ? "true" : "false");
+    $("#vbox").classList.toggle("geo", this.mode === "globe" && this.geoAmt > 0.5);
+    el.classList.toggle("off", !this.geoHeatOn);
+    $("#geoSw").setAttribute("aria-checked", this.geoHeatOn ? "true" : "false");
   },
 
   setHeat(on) {
@@ -611,13 +612,19 @@ Object.assign(M, {
       path(SPHERE);
       c.fillStyle = ocean;
       c.fill();
-    } else if (this.mode === "morph" && g > 0) {
-      const out = this.morphTo === "merc" ? OUT85 : SPHERE;
+    }
+    const skin = (geom) => {
+      if (round) {
+        c.beginPath();
+        path(geom);
+        c.fillStyle = ocean;
+        c.fill();
+        return;
+      }
       c.save();
       c.beginPath();
-      path(out);
-      c.globalAlpha = 0.25 + 0.6 * g;
-      c.fillStyle = p.gocean;
+      path(geom);
+      c.fillStyle = d3.interpolateRgb(p.ocean, p.gocean)(g);
       c.fill();
       c.clip();
       const sh = c.createRadialGradient(
@@ -636,7 +643,8 @@ Object.assign(M, {
       c.fillStyle = sh;
       c.fillRect(cx - R * 1.6, cy - R * 1.6, R * 3.2, R * 3.2);
       c.restore();
-    }
+    };
+    if (!round && this.mode === "morph" && g > 0) skin(this.morphTo === "merc" ? OUT85 : SPHERE);
     c.save();
     if (round) {
       c.beginPath();
@@ -645,31 +653,35 @@ Object.assign(M, {
     }
     const hv = (this.geoAmt || 0) * this.geoHeat;
     if (hv > 0 && cull) this.paintGeoid(hv);
-    c.beginPath();
-    path(GRAT);
-    c.lineWidth = 1;
-    c.strokeStyle = p.grat;
-    c.globalAlpha = 1 - hv * 0.6;
-    c.stroke();
-    c.globalAlpha = 1;
     const LA = this.mode === "morph" ? (this.landA ?? 1) : 1;
-    if (LA < 1) {
-      c.strokeStyle = p.ink;
-      c.lineWidth = 0.7;
-      c.globalAlpha = (1 - LA) * 0.28;
+    const grat = () => {
       c.beginPath();
       path(GRAT);
+      c.lineWidth = 1;
+      c.strokeStyle = p.grat;
+      c.globalAlpha = 1 - hv * 0.6;
       c.stroke();
-      if (this.morphTo !== "merc") {
-        c.lineWidth = 1.3;
-        c.globalAlpha = (1 - LA) * 0.55;
+      if (LA < 1) {
+        c.strokeStyle = p.ink;
+        c.lineWidth = 0.7;
+        c.globalAlpha = (1 - LA) * 0.28;
         c.beginPath();
-        path(SPHERE);
+        path(GRAT);
         c.stroke();
       }
       c.globalAlpha = 1;
       c.lineWidth = 1;
-    }
+    };
+
+    const ca = this.mode === "morph" && g > 0 && P.clipAngle ? P.clipAngle() : null;
+    if (ca && ca > 90.5) {
+      grat();
+      const r = P.rotate();
+      skin(d3.geoCircle().center([-r[0], -r[1]]).radius(89.95)());
+      P.clipAngle(90);
+      grat();
+      P.clipAngle(ca);
+    } else grat();
     const now = performance.now(),
       pa = 0.55 + 0.45 * Math.cos(now / 220);
     let pulse = false;

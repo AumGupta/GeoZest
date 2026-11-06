@@ -1,4 +1,4 @@
-const CACHE = "geozest-v15";
+const CACHE = "geozest-v23";
 const SHELL = [
   "./",
   "index.html",
@@ -14,6 +14,12 @@ const SHELL = [
   "favicon.svg",
   "manifest.webmanifest",
   "icons/icon-192.png",
+  "fonts/geist-mono-latin-ext-wght-normal.woff2",
+  "fonts/geist-mono-latin-wght-normal.woff2",
+  "fonts/inter-latin-ext-wght-normal.woff2",
+  "fonts/inter-latin-wght-normal.woff2",
+  "fonts/source-serif-4-latin-ext-wght-italic.woff2",
+  "fonts/source-serif-4-latin-wght-italic.woff2",
 ];
 const HOSTS = [location.host, "cdnjs.cloudflare.com", "cdn.jsdelivr.net"];
 

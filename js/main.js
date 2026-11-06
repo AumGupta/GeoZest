@@ -29,20 +29,56 @@ document.addEventListener("keydown", (e) => {
 $("#btnSearch").onclick = openSearch;
 $("#btnPlay").onclick = openPlay;
 $("#btnMe").onclick = () => (SH.kind === "me" ? sheetClose() : openMe());
-$("#btnProj").onclick = () =>
-  setProj({ globe: "geoid", geoid: "ee", ee: "merc", merc: "globe" }[S.settings.proj] || "globe");
+function pjOpen(on) {
+  const f = $("#pjFly"),
+    b = $("#btnProj");
+  if (on)
+    f.innerHTML = PJ.filter(([k]) => k !== S.settings.proj)
+      .map(
+        ([k, a, t]) =>
+          `<button role="menuitem" data-pjo="${k}"><b>${a}</b><span>${t}</span></button>`,
+      )
+      .join("");
+  $("#vbox").classList.toggle("open", on);
+  b.setAttribute("aria-expanded", on);
+}
+$("#btnProj").onclick = (e) => {
+  e.stopPropagation();
+  pjOpen(!$("#vbox").classList.contains("open"));
+};
+$("#pjFly").onclick = (e) => {
+  const o = e.target.closest("[data-pjo]");
+  if (!o) return;
+  pjOpen(false);
+  setProj(o.dataset.pjo);
+};
+document.addEventListener(
+  "pointerdown",
+  (e) => {
+    if ($("#vbox").classList.contains("open") && !e.target.closest("#pjFly,#btnProj"))
+      pjOpen(false);
+  },
+  true,
+);
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape") pjOpen(false);
+});
 $("#btnSound").onclick = () => {
   S.settings.sound = !S.settings.sound;
   save();
   applySound();
   if (S.settings.sound) SND.play("tap");
 };
-$("#btnNight").onclick = () => {
-  S.settings.night = !S.settings.night;
-  save();
-  applyTheme();
-};
 $("#btnLoc").onclick = recenter;
+$("#btnLbl").onclick = () => {
+  const on = S.settings.labels === false;
+  S.settings.labels = on;
+  save();
+  applyLbl();
+  M.labels = on;
+  M.sched();
+  toast(on ? "Map labels on" : "Blank map: labels off");
+};
 $("#zIn").onclick = () => M.zoomBy(2);
 $("#zOut").onclick = () => M.zoomBy(0.5);
 addEventListener("resize", () => {
@@ -92,7 +128,7 @@ M.init();
 M.onClick = exploreClick;
 renderChrome();
 M.geoLegend();
-$("#geoLegend").onclick = () => {
+$("#geoSw").onclick = () => {
   const on = !M.geoHeatOn;
   S.settings.geoHeat = on;
   save();
@@ -111,4 +147,4 @@ requestAnimationFrame(() => {
   else if (HOME) M.toId(HOME, isPhone() ? 0.28 : 0.3, 0);
   else M.world(0);
 });
-checkAch();
+if (!S.badges2) checkBadges();

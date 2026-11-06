@@ -3,7 +3,7 @@
 const eeRaw = d3.geoEqualEarthRaw,
   mRaw = d3.geoMercatorRaw;
 const TOP = (84 * Math.PI) / 180,
-  BOT = (-60 * Math.PI) / 180;
+  BOT = (-80 * Math.PI) / 180;
 function rawFor(t) {
   const merc = (l, p) => mRaw(l, Math.max(BOT, Math.min(TOP, p)));
   if (t <= 0) return eeRaw;
@@ -19,6 +19,10 @@ function rawFor(t) {
   };
 }
 const SMALL = 2600;
+function clampLat(g, min) {
+  const c = (a) => (typeof a[0] === "number" ? [a[0], Math.max(min, a[1])] : a.map(c));
+  return { type: g.type, coordinates: c(g.coordinates) };
+}
 const groupBy = (arr, key) => {
   const m = new Map();
   for (const x of arr) {
@@ -63,7 +67,7 @@ const M = {
   k: 1,
   tr: d3.zoomIdentity,
   inset: { top: 0, right: 0, bottom: 0, left: 0 },
-  labels: true,
+  labels: S.settings.labels !== false,
   force: null,
   pins: new Set(),
   dotSet: null,
@@ -170,6 +174,7 @@ const M = {
       sea: v("--sea-text"),
       muted: v("--muted"),
       p: [0, 1, 2, 3, 4, 5].map((i) => v("--p" + i)),
+      sel: v("--accent"),
       good: v("--green"),
       bad: v("--pink"),
       target: v("--cyan"),
@@ -234,11 +239,23 @@ const M = {
   },
   build(lod) {
     this.lod = lod;
+    {
+      const a = this.proj([0, 90]),
+        b = this.proj([0, -90]);
+      this.yExt = a && b && isFinite(a[1]) && isFinite(b[1]) ? [a[1], b[1]] : null;
+    }
     const gp = d3.geoPath(this.proj).digits(2);
     for (const r of RECS) {
       r.p10 = null;
       r.b10 = null;
-      const fs = lod === "110" ? r.f110 : r.f50;
+      let fs = lod === "110" ? r.f110 : r.f50;
+      if (fs && r.id === "ATA" && this.t > 0.5)
+        fs = fs.map((f) => ({
+          type: "Feature",
+          id: f.id,
+          properties: {},
+          geometry: clampLat(f.geometry, -80),
+        }));
       if (fs) {
         const fc = { type: "FeatureCollection", features: fs };
         r.p = new Path2D(gp(fc) || "");
@@ -257,7 +274,23 @@ const M = {
         } else r.b = null;
       }
     }
-    this.gratP = new Path2D(gp(d3.geoGraticule10()) || "");
+    this.gratP = new Path2D(
+      gp({
+        type: "MultiLineString",
+        coordinates: d3
+          .geoGraticule()
+          .lines()
+          .filter((l) => l.coordinates[0][0] === l.coordinates[1][0])
+          .map((l) => l.coordinates),
+      }) || "",
+    );
+    this.parY = d3
+      .range(-80, 81, 10)
+      .map((la) => {
+        const q = this.proj([0, la]);
+        return q ? q[1] : NaN;
+      })
+      .filter(isFinite);
     if (lod === "50") this.placeLabels(gp);
     this.sched();
   },
@@ -381,7 +414,12 @@ const M = {
   },
 
   yBounds(k) {
-    return [this.h - this.h * k, 0];
+    const pad = 0,
+      e = this.yExt || [0, this.h];
+    let lo = this.h - pad - e[1] * k,
+      hi = pad - e[0] * k;
+    if (lo > hi) lo = hi = (lo + hi) / 2;
+    return [lo, hi];
   },
   rubber(t) {
     const [lo, hi] = this.yBounds(t.k);
@@ -505,17 +543,22 @@ const M = {
     const mpp = (d3.geoDistance(p0, p1) * 6371008) / span;
     if (!isFinite(mpp) || mpp <= 0) return;
     const maxM = mpp * 110;
-    const pow = Math.pow(10, Math.floor(Math.log10(maxM)));
-    let nice = pow;
-    for (const m of [1, 2, 5, 10]) if (m * pow <= maxM) nice = m * pow;
+    const mi = S.settings.units === "mi";
+    const big = mi ? (maxM >= 1609.344 ? 1609.344 : 0.3048) : maxM >= 1000 ? 1000 : 1,
+      bigName = mi ? (big > 1 ? " mi" : " ft") : big > 1 ? " km" : " m";
+    const maxU = maxM / big;
+    const pow = Math.pow(10, Math.floor(Math.log10(maxU)));
+    let nu = pow;
+    for (const m of [1, 2, 5, 10]) if (m * pow <= maxU) nu = m * pow;
+    const nice = nu * big;
     const px = nice / mpp;
-    const km = nice >= 1000;
-    const fmt = (v) => (km ? nf.format(v / 1000) : nf.format(v));
+    const km = true;
+    const fmt = (v) => nf.format(Math.round((v / big) * 100) / 100);
     const el = $("#scale");
     el.querySelector(".sb-bar").style.width = px + "px";
     el.querySelector(".sb-l").style.width = px + "px";
     $("#sbMid").textContent = px >= 96 ? fmt(nice / 2) : "";
-    $("#sbEnd").textContent = fmt(nice) + (km ? " km" : " m");
+    $("#sbEnd").textContent = fmt(nice) + bigName;
     el.classList.add("on");
     clearTimeout(this.sbT);
     this.sbT = setTimeout(() => el.classList.remove("on"), 650);
@@ -585,6 +628,16 @@ const M = {
     const now = performance.now();
     const pa = 0.55 + 0.45 * Math.cos(now / 220);
     c.lineJoin = "round";
+    c.beginPath();
+    for (const y of this.parY || []) {
+      const Y = Math.round((ty + y * k) * d) / d + 0.5 / d;
+      if (Y < 0 || Y > H) continue;
+      c.moveTo(0, Y);
+      c.lineTo(W, Y);
+    }
+    c.lineWidth = 1;
+    c.strokeStyle = p.grat;
+    c.stroke();
     for (const n of this.copies()) {
       const ox = tx + n * Pk;
       c.setTransform(d * k, 0, 0, d * k, d * ox, d * ty);
@@ -602,7 +655,6 @@ const M = {
           b[0][1] * k + ty > H
         )
           continue;
-        if (r.id === "ATA" && this.t > 0.5) continue;
         let path = r.p;
         if (hi && r.g10) {
           if (!r.p10 && performance.now() < deadline) this.build10(r);
@@ -786,12 +838,40 @@ const M = {
     };
 
     const forced = this.force ? this.ld.filter((d) => this.force.has(d.id)) : [];
+
+    const many = forced.length > 1;
+    if (many)
+      forced.sort(
+        (a, b) =>
+          (this.state.get(a.id) === "bad" ? 0 : 1) - (this.state.get(b.id) === "bad" ? 0 : 1) ||
+          (C.get(b.id)?.a || 0) - (C.get(a.id)?.a || 0),
+      );
+    const lap = (b) =>
+      placed.some((q) => {
+        const ox = Math.min(b[2], q[2]) - Math.max(b[0], q[0]),
+          oy = Math.min(b[3], q[3]) - Math.max(b[1], q[1]);
+        return (
+          ox > 0 &&
+          oy > 0 &&
+          ox * oy > 0.18 * Math.min((b[2] - b[0]) * (b[3] - b[1]), (q[2] - q[0]) * (q[3] - q[1]))
+        );
+      });
+    const fsM = many ? Math.max(11, Math.min(15, 10 + this.k * 1.2)) : 15;
     for (const d of forced) {
-      const fs = 15,
-        tw = measure(d.n, fs, 700);
+      const fs = fsM,
+        tw = measure(d.n, fs, 700),
+        hh = fs * 0.72;
       for (const [x, y0] of this.at(d)) {
-        const y = y0 + (d.pt ? 14 : 0);
-        const b = [x - tw / 2 - 4, y - 11, x + tw / 2 + 4, y + 11];
+        let y = y0 + (d.pt ? fs : 0);
+        let b = [x - tw / 2 - 3, y - hh, x + tw / 2 + 3, y + hh];
+        if (many && lap(b)) {
+          const alt = [y - hh * 2.3, y + hh * 2.3]
+            .map((yy) => [x - tw / 2 - 3, yy - hh, x + tw / 2 + 3, yy + hh])
+            .find((bb) => !lap(bb));
+          if (!alt) continue;
+          b = alt;
+          y = (b[1] + b[3]) / 2;
+        }
         placed.push(b);
         const onInk = this.state.get(d.id) === "sel" && !d.pt;
         this.text(
@@ -907,7 +987,7 @@ const M = {
     if (best) return best;
     const hi = this.hiRes();
     for (const r of RHIT) {
-      if (!(r.c || (r.id === "ATA" && this.t < 0.5)) || !r.b) continue;
+      if (!(r.c || r.id === "ATA") || !r.b) continue;
       const b = r.b10 || r.b;
       if (bx < b[0][0] || bx > b[1][0] || by < b[0][1] || by > b[1][1]) continue;
       const path = (hi && r.p10) || r.p || r.p10;

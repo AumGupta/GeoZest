@@ -71,7 +71,8 @@ const OCEANS = [
 ];
 const nf = new Intl.NumberFormat("en-GB");
 const isPhone = () => matchMedia("(max-width:700px)").matches;
-const reduced = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
+const reduced = () =>
+  !!(S && S.settings && S.settings.calm) || matchMedia("(prefers-reduced-motion: reduce)").matches;
 const regionOf = (id) => (C.get(id) || {}).r || EXTRA_REGION[id] || "Antarctic";
 const SANS =
   getComputedStyle(document.documentElement).getPropertyValue("--sans") ||
@@ -81,6 +82,12 @@ const WIKI = (t) =>
   encodeURIComponent(t.replace(/ /g, "_")).replace(/%2C/g, ",").replace(/%27/g, "'");
 
 const ic = (p) => `<svg class="i" viewBox="0 0 24 24">${p}</svg>`;
+const PJ = [
+  ["globe", "3D", "Globe"],
+  ["geoid", "GEO", "Geoid"],
+  ["ee", "EE", "Equal Earth"],
+  ["merc", "MRC", "Mercator"],
+];
 const LINKS = {
   repo: "https://github.com/AumGupta/GeoZest",
   support: "https://github.com/sponsors/AumGupta",
@@ -134,6 +141,9 @@ const defaults = () => ({
     timer: true,
     terr: false,
     isl: true,
+    labels: true,
+    calm: false,
+    units: "km",
     proj: "globe",
     night: false,
     region: "World",
@@ -164,10 +174,17 @@ function save() {
 }
 function applyTheme() {
   document.documentElement.classList.toggle("night", !!S.settings.night);
-  const b = $("#btnNight");
-  b.innerHTML = S.settings.night ? I.sun : I.moon;
-  b.setAttribute("aria-label", S.settings.night ? "Day mode" : "Night mode");
+  document.documentElement.classList.toggle("calm", !!S.settings.calm);
   if (window.__M) window.__M.palette();
+}
+function applyLbl() {
+  const on = S.settings.labels !== false,
+    b = $("#btnLbl");
+  b.innerHTML = on
+    ? '<svg class="i" viewBox="0 0 24 24"><path d="M5 7V5h14v2M12 5v14M9 19h6"/></svg>'
+    : '<svg class="i" viewBox="0 0 24 24"><path d="M5 7V5h14v2M12 5v14M9 19h6M4 4l16 16"/></svg>';
+  b.setAttribute("aria-label", on ? "Hide map labels" : "Show map labels");
+  b.setAttribute("aria-pressed", on);
 }
 function applySound() {
   const b = $("#btnSound");
@@ -176,6 +193,7 @@ function applySound() {
 }
 applyTheme();
 applySound();
+applyLbl();
 
 const SND = {
   ctx: null,
@@ -222,6 +240,10 @@ const SND = {
       [523, 659, 784, 1047].forEach((f, i) => this.tone(f, t + i * 0.09, 0.3, "sine", 0.06));
     } else if (name === "tap") {
       this.tone(900, t, 0.03, "sine", 0.03);
+    } else if (name === "level") {
+      [523, 659, 784, 1047, 1319].forEach((f, i) =>
+        this.tone(f, t + i * 0.07, 0.35, "triangle", 0.05),
+      );
     }
   },
 };
@@ -285,6 +307,8 @@ function fmtPop(n) {
 function fmtArea(a) {
   return a < 10 ? a.toFixed(2) : nf.format(Math.round(a));
 }
+const areaTxt = (a) =>
+  S.settings.units === "mi" ? `${fmtArea(a * 0.386102)} mi²` : `${fmtArea(a)} km²`;
 const ord = (n) =>
   n + (n % 100 >= 11 && n % 100 <= 13 ? "th" : ["th", "st", "nd", "rd"][n % 10] || "th");
 function lvlInfo(xp) {

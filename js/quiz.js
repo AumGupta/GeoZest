@@ -346,10 +346,11 @@ function endQuiz() {
   Q = null;
   QL.innerHTML = "";
   M.focus = null;
+  document.body.classList.remove("results");
   document.body.classList.remove("quiz");
   M.forceCountry = false;
   M.tipOn = true;
-  M.labels = true;
+  M.labels = S.settings.labels !== false;
   M.dim = false;
   M.clear();
   M.only(null);
@@ -364,7 +365,7 @@ function endQuiz() {
 }
 const pad2 = (n) => String(n).padStart(2, "0");
 function hud() {
-  return `<div class="hud" role="status"><button class="x" id="qx" aria-label="End quiz">${I.x}</button><span>${pad2(Q.i + 1)}/${pad2(Q.qs.length)}</span><span id="qs">${nf.format(Q.score)}</span><span class="stk ${Q.streak ? "" : "zero"}" id="qk">${I.flame}${Q.streak}</span><span class="tchip" id="qtc" aria-label="Time">${Q.timer ? `<svg class="ring" viewBox="0 0 20 20" aria-hidden="true"><circle class="bg" cx="10" cy="10" r="8"/><circle class="fg" cx="10" cy="10" r="8" pathLength="100"/></svg>` : ""}<span class="sec" id="qt">0.0</span><span class="lim">${Q.timer ? "/ " + (Q.qs[Q.i].kind === "map" ? 20 : 15) + "s" : "s"}</span></span></div>`;
+  return `<div class="hud" role="status"><button class="x" id="qx" aria-label="End quiz">${I.x}</button><span>${pad2(Q.i + 1)}/${pad2(Q.qs.length)}</span><span class="hxp" id="qs">${nf.format(Q.score)}<small>xp</small></span><span class="stk ${Q.streak ? "" : "zero"}" id="qk">${I.flame}${Q.streak}</span>${Q.timer ? `<span class="tbox" id="qtc" role="timer" aria-label="Seconds left"><svg viewBox="0 0 34 34" aria-hidden="true"><path class="tr" d="M17 1.25H23A9.75 9.75 0 0 1 32.75 11V23A9.75 9.75 0 0 1 23 32.75H11A9.75 9.75 0 0 1 1.25 23V11A9.75 9.75 0 0 1 11 1.25Z" pathLength="100"/><path class="pr" d="M17 1.25H23A9.75 9.75 0 0 1 32.75 11V23A9.75 9.75 0 0 1 23 32.75H11A9.75 9.75 0 0 1 1.25 23V11A9.75 9.75 0 0 1 11 1.25Z" pathLength="100" style="stroke-dasharray:100 100"/></svg><b id="qt">${Q.qs[Q.i].kind === "map" ? 20 : 15}</b></span>` : ""}</div>`;
 }
 function timerGo(sec) {
   cancelAnimationFrame(raf);
@@ -372,30 +373,28 @@ function timerGo(sec) {
   Q.t0 = t0;
   Q.dur = Q.timer ? sec * 1000 : 0;
   Q.limit = sec;
+  if (!Q.timer) return;
   const chip = $("#qtc"),
-    ring = chip && chip.querySelector(".fg"),
+    ring = chip && chip.querySelector(".pr"),
     lab = $("#qt");
   const me = Q;
   let lastS = -1;
-
   const tick = (now) => {
     if (Q !== me || Q.answered) return;
-    const el = now - t0;
-    if (lab) lab.textContent = (Math.min(el, Q.dur || el) / 1000).toFixed(1);
-    if (Q.timer) {
-      const p = Math.min(1, el / Q.dur);
-      if (ring) ring.style.strokeDashoffset = 100 - 100 * p;
-      const left = Math.ceil((Q.dur - el) / 1000);
-      if (left !== lastS) {
-        lastS = left;
-        const low = left <= 5;
-        chip.classList.toggle("low", low);
-        if (low && left > 0) SND.play("tick");
-      }
-      if (p >= 1) {
-        timeout();
-        return;
-      }
+    const el = now - t0,
+      left = Math.max(0, Q.dur - el);
+    if (ring) ring.style.strokeDasharray = `${((left / Q.dur) * 100).toFixed(2)} 100`;
+    const s2 = Math.ceil(left / 1000);
+    if (s2 !== lastS) {
+      lastS = s2;
+      if (lab) lab.textContent = s2;
+      const low = s2 <= 5;
+      chip.classList.toggle("low", low);
+      if (low && s2 > 0) SND.play("tick");
+    }
+    if (left <= 0) {
+      timeout();
+      return;
     }
     raf = requestAnimationFrame(tick);
   };
@@ -404,9 +403,7 @@ function timerGo(sec) {
 function pauseTimer() {
   cancelAnimationFrame(raf);
   Q.took = Math.min((performance.now() - Q.t0) / 1000, Q.timer ? Q.limit : 1e9);
-  const l = $("#qt"),
-    c = $("#qtc");
-  if (l) l.textContent = Q.took.toFixed(1);
+  const c = $("#qtc");
   if (c) {
     c.classList.remove("low");
     c.classList.add("done");
@@ -458,8 +455,8 @@ function renderQ() {
 }
 function pts(ok) {
   if (!ok) return 0;
-  let p = 100;
-  if (Q.timer && Q.dur) p += Math.round(50 * Math.max(0, 1 - (performance.now() - Q.t0) / Q.dur));
+  let p = 10;
+  if (Q.timer && Q.dur) p += 5 * Math.max(0, 1 - (performance.now() - Q.t0) / Q.dur);
   return Math.round(p * (1 + Math.min(Q.streak, 10) * 0.1));
 }
 function record(mode, id, ok) {
@@ -486,7 +483,7 @@ function settle(ok, q, picked) {
   Q.log.push({ q, ok, picked });
   save();
   SND.play(ok ? "good" : "bad");
-  $("#qs").textContent = nf.format(Q.score);
+  $("#qs").innerHTML = nf.format(Q.score) + "<small>xp</small>";
   const k = $("#qk");
   k.innerHTML = I.flame + Q.streak;
   k.classList.toggle("zero", !Q.streak);
@@ -512,7 +509,8 @@ function settle(ok, q, picked) {
 }
 function statusChip(ok, q, p, picked, timedOut) {
   let msg;
-  if (ok) msg = `Correct in ${Q.took.toFixed(1)}s <span class="pts">+${p}</span>`;
+  if (ok)
+    msg = `Correct${Q.timer ? ` in ${Q.took.toFixed(1)}s` : ""} <span class="pts">+${p} xp</span>`;
   else if (timedOut) msg = "Time's up";
   else {
     const P = C.get(picked);
@@ -657,13 +655,16 @@ function finish() {
   SND.play("end");
   const total = Q.qs.length,
     correct = Q.correct;
-  const gained =
-    Math.round(Q.score / 10) + 10 + (correct === total ? 25 : 0) + (Q.daily ? DAILY_XP : 0);
+  const gained = Q.score + 10 + (correct === total ? 25 : 0) + (Q.daily ? DAILY_XP : 0);
+  const lv0 = lvlInfo(S.xp).n;
   S.xp += gained;
   const dk = todayKey();
   if (!S.days.includes(dk)) S.days.push(dk);
   S.days = S.days.slice(-400);
   if (Q.daily) S.daily[dk] = { c: correct, t: total };
+  S.games = Math.max(S.games || 0, S.sessions.length) + 1;
+  if (total >= 10 && correct === total) S.perfects = (S.perfects || 0) + 1;
+  S.bestDays = Math.max(S.bestDays || 0, dayStreak());
   S.sessions.unshift({
     d: Date.now(),
     mode: Q.daily ? "daily" : Q.mode,
@@ -677,6 +678,14 @@ function finish() {
   const L = lvlInfo(S.xp);
   const pct = Math.round((correct / total) * 100);
   const missed = Q.log.filter((x) => !x.ok);
+  const nudge =
+    S.sessions.length >= 3 &&
+    (L.n > lv0 || correct === total) &&
+    Date.now() - (S.nudge || 0) > 7 * 864e5;
+  if (nudge) {
+    S.nudge = Date.now();
+    save();
+  }
   M.clear();
   M.dim = true;
   M.only(quizDots());
@@ -694,9 +703,10 @@ function finish() {
           : c.n;
   };
   QL.innerHTML = `<div class="qp" id="qp">
-    <div class="res-top"><span class="big">${pct}%</span><span class="mono" style="font-size:13px;color:var(--muted);text-align:right;line-height:1.6">${correct}/${total}  ${nf.format(Q.score)}<br><span style="color:var(--accent)">+${gained} XP${L.n > Q.lv0 ? `  LEVEL ${L.n}` : ""}</span></span></div>
+    <div class="res-top"><span class="big">${pct}%</span><span class="res-r"><span class="mono res-c">${correct}/${total} correct</span><span class="res-xp" id="resXp">+<b id="xpn">0</b> xp</span></span></div>
     ${missed.length ? `<div class="cap">Review</div><ul class="list" style="max-height:26vh;overflow:auto">${missed.map((x) => rowHTML(C.get(x.q.ans), MODES[x.q.mode].t).replace(`<span class="n">${esc(C.get(x.q.ans).n)}</span>`, `<span class="n">${esc(label(x))}</span>`)).join("")}</ul>` : ""}
     <div style="display:flex;gap:8px">${Q.daily ? "" : `<button class="btn ghost" id="again" style="flex:1">Again</button>`}<button class="btn" id="done" style="flex:1">Done</button></div>
+    ${nudge ? `<a class="nudge" href="${LINKS.support}" target="_blank" rel="noopener"><svg class="i" viewBox="0 0 24 24"><path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z" fill="var(--pink)" stroke="none"/></svg>Enjoying GeoZest? Support it</a>` : ""}
   </div>`;
   const last = { mode: Q.mode, region: Q.region, n: total, timer: Q.timer };
   const all = Q.log.map((x) => x.q.ans);
@@ -718,6 +728,167 @@ function finish() {
     M.inset = { top: 20, right: 0, bottom: qp.offsetHeight + panelGap(), left: 0 };
     M.toIds(all, 0.92, 1000);
   });
+  document.body.classList.add("results");
+  xpReward(gained, lv0, L.n);
+}
+function countUp(el, to, ms) {
+  return new Promise((res) => {
+    if (reduced()) {
+      el.textContent = nf.format(to);
+      res();
+      return;
+    }
+    const t0 = performance.now();
+    const f = (now) => {
+      const u = Math.min(1, (now - t0) / ms);
+      el.textContent = nf.format(Math.round(to * d3.easeCubicOut(u)));
+      u < 1 ? requestAnimationFrame(f) : res();
+    };
+    requestAnimationFrame(f);
+  });
+}
+async function xpReward(gained, lv0, lv1) {
+  const n = $("#xpn");
+  if (!n) {
+    renderChrome();
+    await popBadges(checkBadges());
+    return;
+  }
+  await new Promise((r) => setTimeout(r, 350));
+  await countUp(n, gained, Math.min(1400, 500 + gained * 4));
+  const from = $("#resXp"),
+    to = $("#btnMe");
+  if (from && to && !reduced()) {
+    const a = from.getBoundingClientRect(),
+      b = to.getBoundingClientRect();
+    const fly = document.createElement("div");
+    fly.className = "xpfly";
+    fly.textContent = `+${nf.format(gained)} xp`;
+    document.body.appendChild(fly);
+    const fw = fly.offsetWidth,
+      fh = fly.offsetHeight;
+    fly.style.left = a.right - fw + "px";
+    fly.style.top = a.top + (a.height - fh) / 2 + "px";
+    const dx = b.left + b.width / 2 - (a.right - fw / 2),
+      dy = b.top + b.height / 2 - (a.top + a.height / 2);
+    await fly.animate(
+      [
+        { transform: "translate(0,0) scale(1)", opacity: 1 },
+        {
+          transform: `translate(${dx * 0.5}px,${dy * 0.5 - 40}px) scale(.9)`,
+          opacity: 1,
+          offset: 0.55,
+        },
+        { transform: `translate(${dx}px,${dy}px) scale(.35)`, opacity: 0.2 },
+      ],
+      { duration: 850, easing: "cubic-bezier(.5,0,.3,1)" },
+    ).finished;
+    fly.remove();
+    to.animate(
+      [{ transform: "scale(1)" }, { transform: "scale(1.18)" }, { transform: "scale(1)" }],
+      { duration: 380, easing: "ease-out" },
+    );
+    SND.play("tap");
+  }
   renderChrome();
-  checkAch();
+  if (lv1 > lv0) {
+    await new Promise((r) => setTimeout(r, 500));
+    await levelUp(lv0, lv1);
+  }
+  const got = checkBadges();
+  if (got.length) {
+    await new Promise((r) => setTimeout(r, 300));
+    await popBadges(got);
+  }
+}
+function badgeInfo(b) {
+  const t = badgeTier(b),
+    v = b.v();
+  const o = document.createElement("div");
+  o.className = "lvup bdg info";
+  o.setAttribute("role", "dialog");
+  o.setAttribute("aria-label", b.t);
+  o.innerHTML = `<div class="lvcard">${medal(b, t, "big")}<b class="bt">${b.t}</b>${t ? `<span class="tchip t${t}">${TIERS[t - 1]}</span>` : `<span class="tchip t0">Locked</span>`}
+    <ul class="tiers">${b.at
+      .map((n, k) => {
+        const got = k < t;
+        return `<li class="${got ? "got" : ""}"><i class="${got ? "t" + (k + 1) : ""}"></i><span><b>${TIERS[k]}</b>${b.d(n)}</span>${got ? CK : `<em>${nf.format(Math.min(v, n))}/${nf.format(n)}</em>`}</li>`;
+      })
+      .join("")}</ul>
+    <button class="btn" data-ok style="width:100%">Close</button></div>`;
+  document.body.appendChild(o);
+  requestAnimationFrame(() => o.classList.add("on"));
+  if (t && !reduced()) setTimeout(() => o.classList.add("spin"), 60);
+  const close = () => {
+    o.classList.remove("on");
+    setTimeout(() => o.remove(), 300);
+    document.removeEventListener("keydown", esc1, true);
+  };
+  const esc1 = (e) => {
+    if (e.key === "Escape") {
+      e.stopPropagation();
+      close();
+    }
+  };
+  document.addEventListener("keydown", esc1, true);
+  o.onclick = (e) => {
+    if (e.target === o || e.target.closest("[data-ok]")) close();
+  };
+}
+async function popBadges(got) {
+  for (const [b, t] of got) await badgePop(b, t);
+}
+function badgePop(b, t) {
+  return new Promise((res) => {
+    const o = document.createElement("div");
+    o.className = "lvup bdg";
+    o.setAttribute("role", "dialog");
+    o.setAttribute("aria-label", `Achievement unlocked: ${b.t}, ${TIERS[t - 1]}`);
+    o.innerHTML = `<div class="lvcard"><span class="cap">Achievement unlocked</span>${medal(b, t, "big")}<b class="bt">${b.t}</b><span class="tchip t${t}">${TIERS[t - 1]}</span><span class="lvs">${b.d(b.at[t - 1])}</span></div>`;
+    document.body.appendChild(o);
+    SND.play("level");
+    requestAnimationFrame(() => {
+      o.classList.add("on");
+      if (!reduced()) setTimeout(() => o.classList.add("spin"), 120);
+    });
+    let done = false;
+    const close = () => {
+      if (done) return;
+      done = true;
+      o.classList.remove("on");
+      setTimeout(() => {
+        o.remove();
+        res();
+      }, 300);
+    };
+    o.onclick = close;
+    setTimeout(close, reduced() ? 2200 : 3400);
+  });
+}
+function levelUp(a, b) {
+  return new Promise((res) => {
+    const o = document.createElement("div");
+    o.className = "lvup";
+    o.setAttribute("role", "dialog");
+    o.setAttribute("aria-label", `Level ${b} reached`);
+    o.innerHTML = `<div class="lvcard"><span class="cap">Level up</span><div class="lvroll"><span class="lvn">${a}</span><span class="lvn">${b}</span></div><span class="lvs">You reached level ${b}</span></div>`;
+    document.body.appendChild(o);
+    SND.play("level");
+    requestAnimationFrame(() => {
+      o.classList.add("on");
+      setTimeout(() => o.classList.add("roll"), 450);
+    });
+    let done = false;
+    const close = () => {
+      if (done) return;
+      done = true;
+      o.classList.remove("on");
+      setTimeout(() => {
+        o.remove();
+        res();
+      }, 300);
+    };
+    o.onclick = close;
+    setTimeout(close, reduced() ? 1800 : 2800);
+  });
 }

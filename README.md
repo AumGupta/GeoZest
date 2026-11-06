@@ -26,8 +26,9 @@ GeoZest is a minimal, map-first geography quiz game. Explore every country on a 
 - Native pronunciations of country names, capitals and languages, with IPA.
 - Seven quiz modes: Locate, Identify, Capitals, Flags, Languages, Currencies and Neighbors, for the whole world or any mix of continents, with or without small islands and territories.
 - No giveaway questions. If an answer contains the country's name, the wrong options are made just as convincing.
-- A daily challenge, XP levels, mastery by region and achievements.
-- Light and dark themes, works on phone and desktop, no sign-up. Progress is saved in the browser.
+- A daily challenge, XP levels, mastery by region and 15 achievements with bronze, silver and gold tiers.
+- Light and dark themes, km or miles, a blank-map mode without labels and a reduce-motion option.
+- Works on phone and desktop, no sign-up. Progress is saved in the browser and can be backed up to a file.
 - Installable as an app from the browser, and works offline once loaded.
 
 ## Screenshots
@@ -41,17 +42,19 @@ GeoZest is a minimal, map-first geography quiz game. Explore every country on a 
 
 ## How Scoring Works
 
-### Points in a quiz
+### XP in a quiz
 
-- A correct answer is worth **100 points**. A wrong answer is worth 0.
-- **Speed bonus:** with the timer on, you get up to **50 extra points** for answering fast. The bonus shrinks over the 15 seconds and is gone when time runs out.
-- **Streak bonus:** every correct answer in a row adds **10%** to the next one, up to double points after 10 in a row. A wrong answer resets the streak.
+Everything is counted in **XP**, the same points that fill up your level.
 
-For example, answering in 3 seconds as your fourth correct answer in a row gives (100 + 40) × 1.3 = **182 points**.
+- A correct answer earns **10 XP**. A wrong answer earns 0.
+- **Speed bonus:** with the timer on, you get up to **5 extra XP** for answering fast. The bonus shrinks as the countdown runs and is gone at zero.
+- **Streak bonus:** every correct answer in a row adds **10%** to the next one, up to double XP after 10 in a row. A wrong answer resets the streak.
 
-### XP and levels
+For example, answering with 12 of 15 seconds left as your fourth correct answer in a row gives (10 + 4) × 1.3 = **18 XP**.
 
-At the end of a quiz, your points turn into XP: **1 XP for every 10 points**, plus **10 XP** for finishing, **25 XP** for a perfect round and **50 XP** for the daily challenge.
+### Bonuses and levels
+
+At the end of a quiz you also get **10 XP** for finishing, **25 XP** for a perfect round and **50 XP** for the daily challenge.
 
 Each level needs 100 XP more than the one before: 100 XP to reach level 2, 200 more to reach level 3, and so on.
 
@@ -76,7 +79,8 @@ Questions are picked to help you learn. Countries you got wrong come back more o
 - It saves after every answer, so closing the tab mid-quiz loses nothing.
 - What is saved: your XP, your last answer for each country in each mode, achievements, days played, daily results, your last 50 quizzes and your settings.
 - Progress stays in the browser and device you played on. It does not sync to other devices, and clearing your browser's site data erases it.
-- To start over, open your level (top right) and use **Settings > Progress > Reset**. Your settings are kept.
+- To move it to another device, open **Settings > Progress > Back up** to download a file, then use **Restore** on the other device.
+- To start over, open your level (top right), tap the gear for **Settings**, then use **Progress > Reset**. Your settings are kept.
 - The offline cache only stores the app's own files, never your progress.
 
 ## Development
@@ -101,6 +105,7 @@ js/main.js          wiring and start-up
 js/pwa.js           registers the offline cache
 data/geo.js         countries, borders, flags, time zones and geoid grid (generated)
 data/say/           pronunciation clips, one file per country
+fonts/              bundled web fonts (SIL OFL)
 icons/              app icons
 sw.js               offline cache
 manifest.webmanifest  name, colours and icons used when installed
@@ -148,6 +153,7 @@ npm run build:data
 - Population: [World Bank](https://data.worldbank.org/indicator/SP.POP.TOTL), latest year per country.
 - Geoid: EGM96.
 - Flags: Wikimedia Commons.
+- Fonts: [Inter](https://rsms.me/inter/), [Geist Mono](https://vercel.com/font) and [Source Serif 4](https://github.com/adobe-fonts/source-serif), all under the SIL Open Font License, bundled so the app looks the same on every device.
 - Pronunciation: AI4Bharat Indic-TTS, Kokoro, Piper, Mimic 3, Coqui and Meta MMS voices, with eSpeak NG as a fallback. IPA from eSpeak NG.
 
 ## License

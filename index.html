@@ -27,11 +27,44 @@
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-title" content="GeoZest" />
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <link rel="preload" href="fonts/inter-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin />
+    <link rel="preload" href="fonts/geist-mono-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin />
     <link rel="stylesheet" href="css/style.css" />
   </head>
   <body>
     <div id="map" aria-label="World map" role="img"><canvas id="cv"></canvas></div>
     <div class="tip" id="tip"></div>
+    <svg width="0" height="0" style="position: absolute" aria-hidden="true">
+      <defs>
+        <linearGradient id="mg1o" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0" stop-color="#F2B98A" />
+          <stop offset=".5" stop-color="#C47A3E" />
+          <stop offset="1" stop-color="#7E3F14" />
+        </linearGradient>
+        <linearGradient id="mg1f" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0" stop-color="#E9A56E" />
+          <stop offset="1" stop-color="#A65A22" />
+        </linearGradient>
+        <linearGradient id="mg2o" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0" stop-color="#FFFFFF" />
+          <stop offset=".5" stop-color="#C3CAD3" />
+          <stop offset="1" stop-color="#7D8793" />
+        </linearGradient>
+        <linearGradient id="mg2f" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0" stop-color="#EEF1F4" />
+          <stop offset="1" stop-color="#AAB3BE" />
+        </linearGradient>
+        <linearGradient id="mg3o" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0" stop-color="#FFF2A8" />
+          <stop offset=".5" stop-color="#F2BE1D" />
+          <stop offset="1" stop-color="#A86E00" />
+        </linearGradient>
+        <linearGradient id="mg3f" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0" stop-color="#FFE266" />
+          <stop offset="1" stop-color="#D99A00" />
+        </linearGradient>
+      </defs>
+    </svg>
     <div class="tl">
       <div class="brand">
         <svg class="logo" viewBox="0 0 100 100" aria-hidden="true">
@@ -59,15 +92,15 @@
           <path
             class="pr"
             id="meRing"
+            style="stroke-dasharray: 0 100"
             d="M22 1.25H30A12.75 12.75 0 0 1 42.75 14V30A12.75 12.75 0 0 1 30 42.75H14A12.75 12.75 0 0 1 1.25 30V14A12.75 12.75 0 0 1 14 1.25Z"
             pathLength="100"
-            stroke-dasharray="0 100"
           />
         </svg>
       </button>
       <div class="stack">
-        <button class="proj-btn" id="btnProj" aria-label="Switch projection">EE</button>
         <button id="btnSound" aria-label="Sound"></button>
+        <button id="btnLbl" aria-label="Map labels"></button>
         <button id="btnLoc" aria-label="Recenter">
           <svg class="i" viewBox="0 0 24 24">
             <path d="M12 2v3M12 19v3M2 12h3M19 12h3" />
@@ -75,7 +108,21 @@
             <circle cx="12" cy="12" r="1.6" fill="currentColor" />
           </svg>
         </button>
-        <button id="btnNight" aria-label="Night mode"></button>
+      </div>
+      <div class="vbox" id="vbox">
+        <div class="vrow">
+          <div class="pjfly" id="pjFly" role="menu" aria-label="Map view"></div>
+          <button class="proj-btn" id="btnProj" aria-label="Map view" aria-haspopup="true" aria-expanded="false">
+            EE
+          </button>
+        </div>
+        <div class="vgeo" id="geoLegend" aria-label="Geoid height colours">
+          <span class="ab" aria-hidden="true">Height</span><span class="mono hi">+80 m</span><i></i
+          ><span class="mono lo">&minus;100 m</span
+          ><button class="gsw" id="geoSw" role="switch" aria-checked="true" aria-label="Show geoid heights">
+            <span class="knob"></span>
+          </button>
+        </div>
       </div>
       <div class="stack dk-only">
         <button id="zIn" aria-label="Zoom in">
@@ -85,11 +132,6 @@
           <svg class="i" viewBox="0 0 24 24"><path d="M5 12h14" /></svg>
         </button>
       </div>
-      <button class="geo-legend" id="geoLegend" hidden aria-pressed="true" aria-label="Geoid height colours">
-        <b><span class="sw" aria-hidden="true"></span><span class="lt">Geoid height (EGM96)</span></b
-        ><span class="ab" aria-hidden="true">Geoid<br />height</span><span class="mono lo">&minus;100 m</span><i></i
-        ><span class="mono hi">+80 m</span>
-      </button>
     </div>
 
     <button class="play" id="btnPlay">
