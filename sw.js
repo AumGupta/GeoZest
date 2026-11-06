@@ -1,4 +1,4 @@
-const CACHE = "geozest-v32";
+const CACHE = "geozest-v33";
 const SHELL = [
   "./",
   "index.html",
