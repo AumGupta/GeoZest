@@ -687,6 +687,7 @@ function finish() {
   const gained = Q.score + 10 + (correct === total ? 25 : 0) + (Q.daily ? DAILY_XP : 0);
   const lv0 = lvlInfo(S.xp).n;
   S.xp += gained;
+  ringHold = lvlInfo(S.xp).n > lv0 && !reduced();
   const dk = todayKey();
   if (!S.days.includes(dk)) S.days.push(dk);
   S.days = S.days.slice(-400);
@@ -709,8 +710,8 @@ function finish() {
   const missed = Q.log.filter((x) => !x.ok);
   const nudge =
     S.sessions.length >= 3 &&
-    (L.n > lv0 || correct === total) &&
-    Date.now() - (S.nudge || 0) > 7 * 864e5;
+    (L.n > lv0 || correct === total || S.games % 4 === 0) &&
+    Date.now() - (S.nudge || 0) > 2 * 864e5;
   if (nudge) {
     S.nudge = Date.now();
     save();
@@ -776,9 +777,39 @@ function countUp(el, to, ms) {
     requestAnimationFrame(f);
   });
 }
+
+async function ringLap() {
+  const r = $("#meRing"),
+    w = (ms) => new Promise((k) => setTimeout(k, ms)),
+    L = lvlInfo(S.xp);
+  r.style.strokeDasharray = "100 100";
+  await w(560);
+  $("#btnMe").animate(
+    [{ transform: "scale(1)" }, { transform: "scale(1.12)" }, { transform: "scale(1)" }],
+    { duration: 420, easing: "ease-out" },
+  );
+  r.style.transition = "none";
+  r.style.strokeDasharray = "0 100";
+  r.getBoundingClientRect();
+  r.style.transition = "";
+  const b = $("#meLvl");
+  b.textContent = L.n;
+  b.animate(
+    [
+      { transform: "translateY(6px)", opacity: 0 },
+      { transform: "none", opacity: 1 },
+    ],
+    { duration: 320, easing: "cubic-bezier(.2,.8,.2,1)" },
+  );
+  await w(40);
+  ringHold = false;
+  r.style.strokeDasharray = `${L.pct} 100`;
+  await w(500);
+}
 async function xpReward(gained, lv0, lv1) {
   const n = $("#xpn");
   if (!n) {
+    ringHold = false;
     renderChrome();
     await popBadges(checkBadges());
     return;
@@ -819,6 +850,7 @@ async function xpReward(gained, lv0, lv1) {
     );
     SND.play("tap");
   }
+  if (ringHold) await ringLap();
   renderChrome();
   if (lv1 > lv0) {
     await new Promise((r) => setTimeout(r, 500));

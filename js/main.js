@@ -29,6 +29,7 @@ document.addEventListener("keydown", (e) => {
 $("#btnSearch").onclick = openSearch;
 $("#btnPlay").onclick = openPlay;
 $("#btnMe").onclick = () => (SH.kind === "me" ? sheetClose() : openMe());
+$("#btnBrand").onclick = () => (SH.kind === "settings" ? sheetClose() : openSettings());
 function pjOpen(on) {
   const f = $("#pjFly"),
     b = $("#btnProj");

@@ -418,10 +418,13 @@ function checkBadges() {
   return got;
 }
 
+let ringHold = false;
 function renderChrome() {
   const L = lvlInfo(S.xp);
-  $("#meLvl").textContent = L.n;
-  $("#meRing").style.strokeDasharray = `${L.pct} 100`;
+  if (!ringHold) {
+    $("#meLvl").textContent = L.n;
+    $("#meRing").style.strokeDasharray = `${L.pct} 100`;
+  }
   {
     const j = PJ.find((x) => x[0] === S.settings.proj) || PJ[0];
     $("#btnProj").textContent = j[1];
@@ -1340,9 +1343,25 @@ function openMe() {
         const nx = b.at[t];
         return `<button class="achc${t ? " on" : ""}" style="--i:${i}" data-badge="${b.id}" aria-label="${b.t}, ${t ? TIERS[t - 1] : "locked"}">${medal(b, t)}<span class="at">${b.t}</span><span class="ap">${nx ? `${nf.format(Math.min(v, nx))}/${nf.format(nx)}` : "Maxed"}</span></button>`;
       })
-      .join("")}</div>`;
+      .join("")}</div>
+    <a class="nudge supc" id="supc" href="${LINKS.support}" target="_blank" rel="noopener"><svg class="i" viewBox="0 0 24 24"><path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z" fill="var(--pink)" stroke="none"/></svg>Enjoying GeoZest? Support it</a>`;
   sheetOpen("me", top, body, { snap: "full", onClose: () => coverage(false) });
   coverage(true);
+  {
+    const sc = $("#supc");
+    if (sc && "IntersectionObserver" in window && !reduced()) {
+      const io = new IntersectionObserver(
+        (es) => {
+          if (es[0].isIntersecting) {
+            sc.classList.add("in");
+            io.disconnect();
+          }
+        },
+        { root: SH.body, threshold: 0.45 },
+      );
+      io.observe(sc);
+    } else if (sc) sc.classList.add("in");
+  }
   SH.top.onclick = (e) => {
     if (e.target.closest("#toSet")) {
       openSettings();
