@@ -599,7 +599,7 @@ async function openSay(id) {
   const can = (r) => !!r.a || HAS_TTS;
   const rowH = (r) => {
     const i = rows.push(r) - 1;
-    return `<li><button class="li" data-i="${i}" ${can(r) ? "" : "disabled"}><span class="ic play-ic">${can(r) ? '<svg class="i" viewBox="0 0 24 24"><path d="M8 5v14l11-7z" fill="currentColor" stroke="none"/></svg>' : '<svg class="i" viewBox="0 0 24 24"><path d="M6 12h12"/></svg>'}</span><span class="n"><span class="say-t">${esc(r.t)}</span><span class="say-l">${esc(r.l)}${r.ipa ? `<span class="ipa">/${esc(r.ipa.replace(/\([a-z-]+\)/g, ""))}/</span>` : ""}${can(r) ? "" : ", no audio"}</span></span></button></li>`;
+    return `<li><button class="li" data-i="${i}" ${can(r) ? "" : "disabled"}><span class="ic play-ic">${can(r) ? '<svg class="i" viewBox="0 0 24 24"><path d="M8 5v14l11-7z" fill="currentColor" stroke="none"/></svg>' : '<svg class="i" viewBox="0 0 24 24"><path d="M6 12h12"/></svg>'}</span><span class="n"><span class="say-t">${esc(r.t)}</span><span class="say-l">${esc(r.l)}${r.ipa ? `<span class="ipa">/${esc(r.ipa.replace(/\([a-z-]+\)/g, ""))}/</span>` : ""}${can(r) ? "" : ", no audio"}</span>${r.by ? `<span class="rec"><svg class="i" viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21"/></svg>${esc(r.by)}, ${esc(r.lic)}</span>` : ""}</span></button></li>`;
   };
   d.querySelector(".dlg").innerHTML =
     head +
@@ -610,7 +610,7 @@ async function openSay(id) {
           `<div class="say-h">${h}</div><ul class="list says">${r.map(rowH).join("")}</ul>`,
       )
       .join("")}</div>
-    <div class="say-note">Audio is synthesised with neural voices trained on native speakers where available, and eSpeak NG otherwise.</div>`;
+    <div class="say-note">Clips marked with a mic are real recordings by Wikimedia Commons contributors, used under their licences (<a href="${LINKS.repo}/blob/main/AUDIO_CREDITS.md" target="_blank" rel="noopener">full credits</a>). The rest is synthesised with neural voices, or eSpeak NG.</div>`;
   const first = d.querySelector("[data-i]:not([disabled])");
   first && first.focus({ preventScroll: true });
 }

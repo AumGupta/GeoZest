@@ -165,7 +165,7 @@
   --grat: #1e1e21;
   --space: #232427;
   --space2: #121315;
-  --gocean: #323338;
+  --gocean: #3e3f45;
   --gshadow: rgba(0, 0, 0, 0.62);
   --grim: rgba(0, 0, 0, 0.55);
   --grimline: rgba(255, 255, 255, 0.12);
@@ -2872,6 +2872,23 @@ button.achc {
   font-size: 11.5px;
   color: var(--muted);
   padding: 6px 0 8px;
+}
+.say-note a {
+  color: inherit;
+}
+.rec {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  color: var(--muted);
+  margin-top: 2px;
+}
+.rec .i {
+  width: 12px;
+  height: 12px;
+  flex: none;
+  stroke-width: 2;
 }
 .play-ic {
   width: 36px;
